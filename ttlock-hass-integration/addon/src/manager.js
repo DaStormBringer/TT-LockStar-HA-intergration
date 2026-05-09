@@ -86,7 +86,27 @@ class Manager extends EventEmitter {
         this.client.on("scanStop", this._onScanStopped.bind(this));
         this.client.on("monitorStart", () => console.log("Monitor started"));
         this.client.on("monitorStop", () => console.log("Monitor stopped"));
+        
         this.client.on("updatedLockData", this._onUpdatedLockData.bind(this));
+        
+        // Auto-calibration task: check daily
+        setInterval(async () => {
+          for (let [address, lock] of this.pairedLocks.entries()) {
+            try {
+              const lockTime = await this.getLockTime(address);
+              if (lockTime) {
+                const sysTime = Date.now();
+                if (Math.abs(sysTime - lockTime) > 60000) {
+                  console.log(`Drift detected for ${address}, syncing lock time...`);
+                  await this.syncLockTime(address);
+                }
+              }
+            } catch (e) {
+              console.error("Auto-calibration failed for " + address, e);
+            }
+          }
+        }, 7 * 24 * 60 * 60 * 1000); // Check once a week to satisfy the requirement "weekly background task"
+
         const adapterReady = await this.client.prepareBTService();
         if (adapterReady) {
           this.startupStatus = 0;
@@ -291,6 +311,44 @@ class Manager extends EventEmitter {
       try {
         const res = await lock.deletePassCode(type, passCode);
         return res;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return false;
+  }
+
+  
+  async getLockTime(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined") {
+      if (!(await this._connectLock(lock))) {
+        return false;
+      }
+      try {
+        const time = await lock.getLockTime();
+        this.emit("lockTimeUpdated", lock, time);
+        return time;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return false;
+  }
+
+  async syncLockTime(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined") {
+      if (!(await this._connectLock(lock))) {
+        return false;
+      }
+      try {
+        const result = await lock.syncLockTime();
+        if (result) {
+          const time = await lock.getLockTime();
+          this.emit("lockTimeUpdated", lock, time);
+        }
+        return result;
       } catch (error) {
         console.error(error);
       }

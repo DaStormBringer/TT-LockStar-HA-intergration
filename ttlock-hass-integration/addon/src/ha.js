@@ -28,6 +28,7 @@ class HomeAssistant {
     manager.on("lockUnlock", this._onLockUnlock.bind(this));
     manager.on("lockLock", this._onLockLock.bind(this));
     manager.on("lockBatteryUpdated", this._onLockBatteryUpdated.bind(this));
+    manager.on("lockTimeUpdated", this._onLockTimeUpdated.bind(this));
   }
 
   async connect() {
@@ -124,7 +125,46 @@ class HomeAssistant {
       }
       res = await this.client.publish(configRssiTopic, JSON.stringify(rssiPayload), { retain: true });
 
+      
+      // setup lock time sensor
+      const configLockTimeTopic = this.discovery_prefix + "/sensor/" + id + "/lock_time/config";
+      const lockTimePayload = {
+        unique_id: "ttlock_" + id + "_lock_time",
+        name: name + " Time",
+        device: device,
+        device_class: "timestamp",
+        state_topic: "ttlock/" + id,
+        value_template: "{{ value_json.lock_time }}",
+      }
+      if (process.env.MQTT_DEBUG == "1") {
+        console.log("MQTT Publish", configLockTimeTopic, JSON.stringify(lockTimePayload));
+      }
+      res = await this.client.publish(configLockTimeTopic, JSON.stringify(lockTimePayload), { retain: true });
+
+      // setup get lock time button
+      const configGetTimeTopic = this.discovery_prefix + "/button/" + id + "/get_time/config";
+      const getTimePayload = {
+        unique_id: "ttlock_" + id + "_get_time",
+        name: "Get " + name + " Time",
+        device: device,
+        command_topic: "ttlock/" + id + "/get_time/set",
+        payload_press: "PRESS"
+      }
+      res = await this.client.publish(configGetTimeTopic, JSON.stringify(getTimePayload), { retain: true });
+
+      // setup sync lock time button
+      const configSyncTimeTopic = this.discovery_prefix + "/button/" + id + "/sync_time/config";
+      const syncTimePayload = {
+        unique_id: "ttlock_" + id + "_sync_time",
+        name: "Sync " + name + " Time",
+        device: device,
+        command_topic: "ttlock/" + id + "/sync_time/set",
+        payload_press: "PRESS"
+      }
+      res = await this.client.publish(configSyncTimeTopic, JSON.stringify(syncTimePayload), { retain: true });
+
       this.configuredLocks.add(lock.getAddress());
+
     }
   }
 
@@ -202,8 +242,9 @@ class HomeAssistant {
      * Topic: ttlock/e1581b3a605e/set
        Message: UNLOCK
      */
+    
     let topicArr = topic.split("/");
-    if (topicArr.length == 3 && topicArr[0] == "ttlock" && topicArr[2] == "set" && topicArr[1].length == 12) {
+    if (topicArr.length >= 3 && topicArr[0] == "ttlock" && topicArr[1].length == 12) {
       let address = "";
       for (let i = 0; i < topicArr[1].length; i++) {
         address += topicArr[1][i];
@@ -214,17 +255,24 @@ class HomeAssistant {
       address = address.toUpperCase();
       const command = message.toString('utf8');
       if (process.env.MQTT_DEBUG == "1") {
-        console.log("MQTT command:", address, command);
+        console.log("MQTT command:", address, topicArr[2], command);
       }
-      switch (command) {
-        case "LOCK":
-          manager.lockLock(address);
-          break;
-        case "UNLOCK":
-          manager.unlockLock(address);
-          break;
+      if (topicArr[2] == "set") {
+        switch (command) {
+          case "LOCK":
+            manager.lockLock(address);
+            break;
+          case "UNLOCK":
+            manager.unlockLock(address);
+            break;
+        }
+      } else if (topicArr[2] == "get_time" && topicArr[3] == "set" && command === "PRESS") {
+        manager.getLockTime(address);
+      } else if (topicArr[2] == "sync_time" && topicArr[3] == "set" && command === "PRESS") {
+        manager.syncLockTime(address);
       }
     } else if (process.env.MQTT_DEBUG == "1") {
+
       console.log("Topic:", topic);
       console.log("Message:", message.toString('utf8'));
     }
