@@ -233,6 +233,31 @@ class HomeAssistant {
   }
 
   /**
+   * @param {import('ttlock-sdk-js').TTLock} lock 
+   * @param {number} time
+   */
+  async _onLockTimeUpdated(lock, time) {
+    if (this.connected) {
+      const id = this.getLockId(lock);
+      const stateTopic = "ttlock/" + id;
+      const lockedStatus = await lock.getLockStatus();
+      let statePayload = {
+        battery: lock.getBattery(),
+        rssi: lock.getRssi(),
+        lock_time: new Date(time).toISOString(),
+      };
+      if (lockedStatus != LockedStatus.UNKNOWN) {
+        statePayload.state = lockedStatus == LockedStatus.LOCKED ? "LOCK" : "UNLOCK";
+      }
+
+      if (process.env.MQTT_DEBUG == "1") {
+        console.log("MQTT Publish", stateTopic, JSON.stringify(statePayload));
+      }
+      await this.client.publish(stateTopic, JSON.stringify(statePayload), { retain: true });
+    }
+  }
+
+  /**
    * 
    * @param {string} topic 
    * @param {Buffer} message 
