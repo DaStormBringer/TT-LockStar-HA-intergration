@@ -209,6 +209,12 @@ class Manager extends EventEmitter {
       }
       try {
         const res = await lock.unlock();
+        if (res && typeof lock.getLastOperationTimestamp === "function") {
+          const timestamp = lock.getLastOperationTimestamp();
+          if (typeof timestamp !== "undefined") {
+            this.emit("lockTimeUpdated", lock, timestamp);
+          }
+        }
         return res;
       } catch (error) {
         console.error(error);
@@ -225,6 +231,12 @@ class Manager extends EventEmitter {
       }
       try {
         const res = await lock.lock();
+        if (res && typeof lock.getLastOperationTimestamp === "function") {
+          const timestamp = lock.getLastOperationTimestamp();
+          if (typeof timestamp !== "undefined") {
+            this.emit("lockTimeUpdated", lock, timestamp);
+          }
+        }
         return res;
       } catch (error) {
         console.error(error);
