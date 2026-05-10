@@ -29,7 +29,7 @@
             prepend-icon="mdi-volume-high"
             label="Sound"
             persistent-hint
-            hint="Enables or disables the very anyoing beep when pressing keys or unlocking"
+            hint="Enables or disables the beep when pressing keys or unlocking"
             inset
           >
           </v-switch>
