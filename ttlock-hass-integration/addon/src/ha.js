@@ -211,23 +211,8 @@ class HomeAssistant {
    * @param {import('ttlock-sdk-js').TTLock} lock 
    */
   async _onLockConnected(lock) {
-    // 1. Send the Auto-Discovery config to Home Assistant
+    // Send the Auto-Discovery config to Home Assistant
     await this.configureLock(lock);
-    
-    // 2. Wait 3 seconds for the Bluetooth radio to finish its boot sequence,
-    // then quietly fetch the time. 
-    // (When this finishes, it will automatically trigger updateLockState 
-    // with a FULL payload, preventing the 'Unknown' glitch!)
-    setTimeout(() => {
-      if (this.connected) {
-        const id = this.getLockId(lock);
-        
-        // ONLY fetch the time if the RAM cache is currently empty
-        if (!this.lockTimes.has(id)) {
-          manager.getLockTime(lock.getAddress());
-        }
-      }
-    }, 3000);
   }
   /**
    * 

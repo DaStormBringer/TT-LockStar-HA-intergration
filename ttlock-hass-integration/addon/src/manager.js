@@ -743,6 +743,12 @@ class Manager extends EventEmitter {
           if (result == true) {
             console.log("Successful connect attempt to paired lock", lock.getAddress());
             await this._processOperationLog(lock);
+            try {
+              const time = await lock.getLockTime();
+              this.emit("lockTimeUpdated", lock, time);
+            } catch (error) {
+              console.error("Failed to get lock time during discovery:", error);
+            }
           } else {
             console.log("Unsuccessful connect attempt to paired lock", lock.getAddress());
             this.connectQueue.add(lock.getAddress());
