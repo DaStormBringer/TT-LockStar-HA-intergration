@@ -17,10 +17,5 @@ init({
   mqttSSL: process.env.MQTT_SSL,
   mqttUser: process.env.MQTT_USER,
   mqttPass: process.env.MQTT_PASS,
-  gateway: process.env.GATEWAY || "none",
-  gateway_host: process.env.GATEWAY_HOST || "127.0.0.1",
-  gateway_port: process.env.GATEWAY_PORT || 2846,
-  gateway_key: process.env.GATEWAY_KEY,
-  gateway_user: process.env.GATEWAY_USER,
-  gateway_pass: process.env.GATEWAY_PASS
+  gateway: "none"
 });

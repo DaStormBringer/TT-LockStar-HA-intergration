@@ -37,15 +37,6 @@ module.exports = async (options) => {
 
   // initialize manager
   const manager = require("./manager");
-  if (options.gateway  && options.gateway == "noble") {
-    manager.setNobleGateway(
-      options.gateway_host,
-      options.gateway_port,
-      options.gateway_key,
-      options.gateway_user,
-      options.gateway_pass
-    );
-  }
   var ha;
   if (options.mqttHost && options.mqttUser && options.mqttPass) {
     const haOptions = {

@@ -19,19 +19,16 @@
     "mqtt:want"
   ],
   "options": {
-    "gateway": "none"
+    "bluetooth_adapter": "hci0",
+    "ignore_crc": false,
+    "debug_communication": false,
+    "debug_mqtt": false
   },
   "schema": {
-    "gateway": "list(none|noble)",
-    "gateway_host": "str?",
-    "gateway_port": "port?",
-    "gateway_key": "str?",
-    "gateway_user": "str?",
-    "gateway_pass": "password?",
+    "bluetooth_adapter": "match(^hci[0-9]+|[0-9]+$)",
     "ignore_crc": "bool?",
     "debug_communication": "bool?",
-    "debug_mqtt": "bool?",
-    "gateway_debug": "bool?"
+    "debug_mqtt": "bool?"
   }, 
   "arch": ["amd64", "aarch64"]
 }
