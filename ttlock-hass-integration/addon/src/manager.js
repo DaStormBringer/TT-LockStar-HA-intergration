@@ -808,12 +808,12 @@ class Manager extends EventEmitter {
     }
   }
 
-  /** Stop scan after 30 seconds */
+  /** Stop scan after 60 seconds */
   async _scanTimer() {
     if (typeof this.scanTimer == "undefined") {
       this.scanTimer = setTimeout(() => {
         this.stopScan();
-      }, 30 * 1000);
+      }, 60 * 1000);
     }
   }
 }

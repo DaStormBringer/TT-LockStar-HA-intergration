@@ -42,7 +42,7 @@
             </v-btn>
             <div v-else class="text-center">
               <v-progress-circular indeterminate color="blue" size="50" width="5" class="mb-4"></v-progress-circular>
-              <div class="body-1 blue--text font-weight-medium animate-pulse">Scanning nearby BLE devices...</div>
+              <div class="body-1 blue--text font-weight-medium animate-pulse">Scanning nearby BLE devices... ({{ countdown }}s remaining)</div>
             </div>
           </v-card-actions>
         </v-card>
@@ -66,6 +66,12 @@ export default {
   components: {
     Lock,
   },
+  data() {
+    return {
+      countdown: 60,
+      countdownInterval: null,
+    };
+  },
   computed: {
     locks() {
       return this.$store.state.locks;
@@ -74,10 +80,40 @@ export default {
       return this.$store.state.scanStatus === 1;
     },
   },
+  watch: {
+    isScanning(newVal) {
+      if (newVal) {
+        this.startCountdown();
+      } else {
+        this.stopCountdown();
+      }
+    },
+  },
   methods: {
     startScan() {
       this.$store.dispatch("scan");
     },
+    startCountdown() {
+      this.stopCountdown();
+      this.countdown = 60;
+      this.countdownInterval = setInterval(() => {
+        if (this.countdown > 0) {
+          this.countdown--;
+        } else {
+          this.stopCountdown();
+        }
+      }, 1000);
+    },
+    stopCountdown() {
+      if (this.countdownInterval) {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
+      }
+      this.countdown = 60;
+    },
+  },
+  beforeDestroy() {
+    this.stopCountdown();
   },
 };
 </script>

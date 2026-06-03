@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.3] - 2026-06-03
+- Increase Bluetooth scan duration from 30 seconds to 60 seconds
+- Add a reactive countdown timer overlay to the frontend Ingress UI showing seconds remaining during a scan
+
 ## [0.5.2] - 2026-06-03
 - Fix peripheral connection canceled errors by dynamically overriding connection timeouts in ttlock-sdk-js (forcing timeouts up to 40/45s, critical for weak RSSI signals and slow Bluetooth virtual adapters)
 
