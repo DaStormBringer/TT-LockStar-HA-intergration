@@ -4,6 +4,27 @@ const EventEmitter = require('events');
 const store = require("./store");
 const { TTLockClient, AudioManage, LockedStatus, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
 
+// Monkey patch ttlock-sdk-js connection timeouts to handle weak BLE signals / slower HA BT adapters
+try {
+  const { NobleDevice } = require("ttlock-sdk-js/dist/scanner/noble/NobleDevice");
+  const originalNobleConnect = NobleDevice.prototype.connect;
+  NobleDevice.prototype.connect = function (timeout = 40) {
+    const finalTimeout = Math.max(timeout, 40);
+    console.log(`[MonkeyPatch] NobleDevice.connect: forcing timeout to ${finalTimeout}s`);
+    return originalNobleConnect.call(this, finalTimeout);
+  };
+
+  const { TTLock } = require("ttlock-sdk-js/dist/device/TTLock");
+  const originalTTLockConnect = TTLock.prototype.connect;
+  TTLock.prototype.connect = function (skipDataRead = false, timeout = 45) {
+    const finalTimeout = Math.max(timeout, 45);
+    console.log(`[MonkeyPatch] TTLock.connect: forcing timeout to ${finalTimeout}s`);
+    return originalTTLockConnect.call(this, skipDataRead, finalTimeout);
+  };
+} catch (err) {
+  console.error("Failed to apply ttlock-sdk-js monkey patches:", err);
+}
+
 const ScanType = Object.freeze({
   NONE: 0,
   AUTOMATIC: 1,

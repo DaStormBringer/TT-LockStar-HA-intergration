@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.5.2] - 2026-06-03
+- Fix peripheral connection canceled errors by dynamically overriding connection timeouts in ttlock-sdk-js (forcing timeouts up to 40/45s, critical for weak RSSI signals and slow Bluetooth virtual adapters)
+
 ## [0.5.1] - 2026-05-28
 - Configure local Bluetooth adapter (`bluetooth_adapter` option in config)
 - Extract Bluetooth device ID and export `NOBLE_HCI_DEVICE_ID`
