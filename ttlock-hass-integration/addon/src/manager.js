@@ -670,6 +670,7 @@ class Manager extends EventEmitter {
         this._bindLockEvents(lock);
         // add it to the list of known locks and connect it
         console.log("Discovered paired lock:", lock.getAddress());
+        this.pairedLocks.set(lock.getAddress(), lock);
         if (this.client.isMonitoring()) {
           const result = await lock.connect();
           if (result == true) {

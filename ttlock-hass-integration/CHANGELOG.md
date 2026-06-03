@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.5.6] - 2026-06-03
+- Fix an issue where the scan gets stuck on the setup screen and cannot display previously paired locks when discovered during scanning by immediately adding discovered paired locks to the manager's list.
+
 ## [0.5.5] - 2026-06-03
 - Fix persistent "Failed to set adminPasscode" initialization error by monkey patching the underlying TTLock SDK to treat response code `0` (`ERROR_NONE`) as a successful operation, resolving admin password setup failures.
 
