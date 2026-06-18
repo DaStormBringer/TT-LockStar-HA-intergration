@@ -86,6 +86,7 @@ class Manager extends EventEmitter {
     this.gateway_key = "";
     this.gateway_user = "";
     this.gateway_pass = "";
+    this.processingLocks = new Set();
   }
 
   async init() {
@@ -212,6 +213,18 @@ class Manager extends EventEmitter {
       }
     }
     throw new Error("Lock not found in scanned list.");
+  }
+
+  async disconnectLock(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined" && lock.isConnected()) {
+      try {
+        console.log(`[Manager] Explicitly disconnecting lock ${address}`);
+        await lock.disconnect();
+      } catch (error) {
+        console.error(`[Manager] Error explicitly disconnecting lock ${address}:`, error);
+      }
+    }
   }
 
   async unlockLock(address) {
@@ -612,14 +625,28 @@ class Manager extends EventEmitter {
   async _connectLock(lock, readData = true) {
     if (this.scanning) return false;
     if (!lock.isConnected()) {
+      let wasMonitoring = false;
       try {
+        wasMonitoring = this.client.isMonitoring();
+        if (wasMonitoring) {
+          console.log("[Manager] Stopping monitor before connecting to lock...");
+          await this.client.stopMonitor();
+        }
         const res = await lock.connect(!readData);
         if (!res) {
           console.log("Connect to lock failed", lock.getAddress());
+          if (wasMonitoring) {
+            console.log("[Manager] Restarting monitor after failed connection...");
+            this.client.startMonitor();
+          }
           return false;
         }
       } catch (error) {
         console.error(error);
+        if (wasMonitoring) {
+          console.log("[Manager] Restarting monitor after connection exception...");
+          this.client.startMonitor();
+        }
         return false;
       }
       return true;
@@ -672,7 +699,7 @@ class Manager extends EventEmitter {
         console.log("Discovered paired lock:", lock.getAddress());
         this.pairedLocks.set(lock.getAddress(), lock);
         if (this.client.isMonitoring()) {
-          const result = await lock.connect();
+          const result = await this._connectLock(lock, true);
           if (result == true) {
             console.log("Successful connect attempt to paired lock", lock.getAddress());
             await this._processOperationLog(lock);
@@ -680,7 +707,9 @@ class Manager extends EventEmitter {
             console.log("Unsuccessful connect attempt to paired lock", lock.getAddress());
             this.connectQueue.add(lock.getAddress());
           }
-          await lock.disconnect();
+          if (lock.isConnected()) {
+            await lock.disconnect();
+          }
         } else {
           // add it to the connect queue
           this.connectQueue.add(lock.getAddress());
@@ -772,27 +801,49 @@ class Manager extends EventEmitter {
    * @param {import('ttlock-sdk-js').TTLock} lock 
    */
   async _onLockUpdated(lock, paramsChanged) {
-    console.log("lockUpdated", paramsChanged);
-    // if lock has new operations read the operations and send updates
-    if (paramsChanged.newEvents == true && lock.hasNewEvents()) {
-      if (!lock.isConnected()) {
-        const result = await lock.connect();
-        // TODO: handle failed connection
+    const address = lock.getAddress();
+    if (this.processingLocks.has(address)) {
+      console.log(`[Manager] Already processing update for lock ${address}, skipping concurrent run.`);
+      return;
+    }
+    this.processingLocks.add(address);
+    try {
+      console.log("lockUpdated", paramsChanged);
+      // if lock has new operations read the operations and send updates
+      if (paramsChanged.newEvents == true && lock.hasNewEvents()) {
+        let connected = lock.isConnected();
+        if (!connected) {
+          const result = await lock.connect();
+          connected = (result === true);
+        }
+        if (connected) {
+          await this._processOperationLog(lock);
+        } else {
+          console.warn(`[Manager] Could not connect to lock ${address} to process operation log.`);
+        }
       }
-      await this._processOperationLog(lock);
-    }
-    if (paramsChanged.lockedStatus == true) {
-      const status = await lock.getLockStatus();
-      if (status == LockedStatus.LOCKED) {
-        console.log(">>>>>> Lock is now locked from new event <<<<<<");
-        this.emit("lockLock", lock);
+      if (paramsChanged.lockedStatus == true) {
+        const status = await lock.getLockStatus();
+        if (status == LockedStatus.LOCKED) {
+          console.log(">>>>>> Lock is now locked from new event <<<<<<");
+          this.emit("lockLock", lock);
+        }
       }
+      if (paramsChanged.batteryCapacity == true) {
+        this.emit("lockUpdated", lock);
+      }
+    } catch (error) {
+      console.error(`[Manager] Error in _onLockUpdated for lock ${address}:`, error);
+    } finally {
+      try {
+        if (lock.isConnected()) {
+          await lock.disconnect();
+        }
+      } catch (err) {
+        console.error(`[Manager] Error disconnecting lock ${address}:`, err);
+      }
+      this.processingLocks.delete(address);
     }
-    if (paramsChanged.batteryCapacity == true) {
-      this.emit("lockUpdated", lock);
-    }
-
-    await lock.disconnect();
   }
 
   async _processOperationLog(lock) {

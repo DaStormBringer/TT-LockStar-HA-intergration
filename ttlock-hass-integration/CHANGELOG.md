@@ -1,9 +1,15 @@
 # Changelog
 
-## [0.5.6] - 2026-06-03
+## [0.5.7] - 2026-06-18
+- Speed up BLE connections by pausing background monitor/scanning during connection establishment
+- Add connection concurrency protection per lock in status update handlers to prevent "Connect already in progress" errors
+- Add explicit disconnect calls at the end of every WebSocket API action to release connection resources promptly
+- Wrap status update event handlers in robust try-catch-finally blocks to avoid uncaught promise rejection errors
+
+## [0.5.6] - 2026-06-04
 - Fix an issue where the scan gets stuck on the setup screen and cannot display previously paired locks when discovered during scanning by immediately adding discovered paired locks to the manager's list.
 
-## [0.5.5] - 2026-06-03
+## [0.5.5] - 2026-06-04
 - Fix persistent "Failed to set adminPasscode" initialization error by monkey patching the underlying TTLock SDK to treat response code `0` (`ERROR_NONE`) as a successful operation, resolving admin password setup failures.
 
 ## [0.5.4] - 2026-06-03

@@ -85,6 +85,7 @@ module.exports = async (server) => {
                   WsApi.sendLockStatus(wss, lock);
                 }
               }
+              await manager.disconnectLock(msg.data.address);
             }
             break;
 
@@ -98,6 +99,7 @@ module.exports = async (server) => {
                   WsApi.sendLockStatus(wss, lock);
                 }
               }
+              await manager.disconnectLock(msg.data.address);
             }
             break;
 
@@ -114,6 +116,7 @@ module.exports = async (server) => {
               } else { // notify failure
                 api.sendError("Failed fetching credentials", msg);
               }
+              await manager.disconnectLock(msg.data.address);
             }
             break;
 
@@ -144,6 +147,7 @@ module.exports = async (server) => {
               } else { // notify failure
                 api.sendError("PIN operation failed", msg);
               }
+              await manager.disconnectLock(msg.data.address);
             }
             break;
 
@@ -174,6 +178,7 @@ module.exports = async (server) => {
                   api.sendError("Failed fetching cards", msg);
                 }
               }
+              await manager.disconnectLock(msg.data.address);
             }
             break;
 
@@ -204,6 +209,7 @@ module.exports = async (server) => {
                   api.sendError("Failed fetching fingerprints", msg);
                 }
               }
+              await manager.disconnectLock(msg.data.address);
             }
             break;
 
@@ -232,6 +238,7 @@ module.exports = async (server) => {
               }
 
               api.sendSettingsConfirmation(msg.data.address, confirmedSettings);
+              await manager.disconnectLock(msg.data.address);
             }
             break;
             
