@@ -94,6 +94,7 @@ class Manager extends EventEmitter {
     this.client = undefined;
     this.scanning = false;
     this.interacting = false;
+    this.lockMutexes = new Map();
     /** @type {NodeJS.Timeout} */
     this.scanTimer = undefined;
     this.scanCounter = 0;
@@ -234,6 +235,8 @@ class Manager extends EventEmitter {
       } catch (error) {
         console.error(error);
         throw error;
+      } finally {
+        await this.disconnectLock(address);
       }
     }
     throw new Error("Lock not found in scanned list.");
@@ -252,6 +255,11 @@ class Manager extends EventEmitter {
       }
     } else {
       this.client.startMonitor();
+    }
+    const mutex = this.lockMutexes.get(address);
+    if (mutex) {
+      this.lockMutexes.delete(address);
+      mutex.resolve();
     }
   }
 
@@ -703,6 +711,15 @@ class Manager extends EventEmitter {
    */
   async _connectLock(lock, readData = true) {
     if (this.scanning) return false;
+    const address = lock.getAddress();
+    while (this.lockMutexes.has(address)) {
+      console.log(`[Manager] Connection for ${address} is busy, waiting...`);
+      await this.lockMutexes.get(address).promise;
+    }
+    let resolveLock;
+    const promise = new Promise(resolve => { resolveLock = resolve; });
+    this.lockMutexes.set(address, { promise, resolve: resolveLock });
+
     this.interacting = true;
     if (!lock.isConnected()) {
       let wasMonitoring = false;
@@ -716,6 +733,8 @@ class Manager extends EventEmitter {
         if (!res) {
           console.log("Connect to lock failed", lock.getAddress());
           this.interacting = false;
+          this.lockMutexes.delete(address);
+          resolveLock();
           if (wasMonitoring) {
             console.log("[Manager] Restarting monitor after failed connection...");
             this.client.startMonitor();
@@ -725,6 +744,8 @@ class Manager extends EventEmitter {
       } catch (error) {
         console.error(error);
         this.interacting = false;
+        this.lockMutexes.delete(address);
+        resolveLock();
         if (wasMonitoring) {
           console.log("[Manager] Restarting monitor after connection exception...");
           this.client.startMonitor();
@@ -750,9 +771,9 @@ class Manager extends EventEmitter {
       if (this.pairedLocks.has(address)) {
         let lock = this.pairedLocks.get(address);
         console.log("Auto connect to", address);
-        const result = await lock.connect();
+        const result = await this._connectLock(lock, true);
         if (result === true) {
-          await lock.disconnect();
+          await this.disconnectLock(address);
           console.log("Successful connect attempt to paired lock", address);
           this.connectQueue.delete(address);
         } else {
@@ -789,9 +810,7 @@ class Manager extends EventEmitter {
             console.log("Unsuccessful connect attempt to paired lock", lock.getAddress());
             this.connectQueue.add(lock.getAddress());
           }
-          if (lock.isConnected()) {
-            await lock.disconnect();
-          }
+          await this.disconnectLock(lock.getAddress());
         } else {
           // add it to the connect queue
           this.connectQueue.add(lock.getAddress());
@@ -895,13 +914,8 @@ class Manager extends EventEmitter {
     this.processingLocks.add(address);
     try {
       console.log("lockUpdated", paramsChanged);
-      // if lock has new operations read the operations and send updates
       if (paramsChanged.newEvents == true && lock.hasNewEvents()) {
-        let connected = lock.isConnected();
-        if (!connected) {
-          const result = await lock.connect();
-          connected = (result === true);
-        }
+        const connected = await this._connectLock(lock, true);
         if (connected) {
           await this._processOperationLog(lock);
         } else {
@@ -921,13 +935,7 @@ class Manager extends EventEmitter {
     } catch (error) {
       console.error(`[Manager] Error in _onLockUpdated for lock ${address}:`, error);
     } finally {
-      try {
-        if (lock.isConnected()) {
-          await lock.disconnect();
-        }
-      } catch (err) {
-        console.error(`[Manager] Error disconnecting lock ${address}:`, err);
-      }
+      await this.disconnectLock(address);
       this.processingLocks.delete(address);
     }
   }

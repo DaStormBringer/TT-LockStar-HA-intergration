@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.6.3] - 2026-06-18
+- Implement lock connection mutex to serialize BLE commands and prevent concurrent connection collisions (e.g. setting auto-lock while fetching logs)
+- Route lock status updates and pairing through the connection manager wrapper to guarantee mutex compliance
+
 ## [0.6.2] - 2026-06-18
 - Add missing `disconnectLock` call after getting operation logs
 - Prevent noble auto-monitoring race condition/crashes when querying the lock immediately after a disconnect
