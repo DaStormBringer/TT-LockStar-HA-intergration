@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.6.1] - 2026-06-18
+- Fix startup crash caused by missing imports in backend manager module
+
 ## [0.6.0] - 2026-06-18
 - Add persistent caching for credentials (PINs, cards, fingerprints) and operation logs to avoid redundant BLE connections
 - Add manual "Refresh" buttons to both Operation Log and Credentials views to force updates from the lock

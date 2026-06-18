@@ -1,3 +1,9 @@
+'use strict';
+
+const EventEmitter = require('events');
+const store = require("./store");
+const { TTLockClient, AudioManage, LockedStatus, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
+
 // Global console.log wrapper to suppress verbose SDK logs unless TTLOCK_DEBUG_COMM is enabled
 const originalConsoleLog = console.log;
 console.log = function (...args) {
