@@ -93,6 +93,7 @@ class Manager extends EventEmitter {
     this.startupStatus = -1;
     this.client = undefined;
     this.scanning = false;
+    this.interacting = false;
     /** @type {NodeJS.Timeout} */
     this.scanTimer = undefined;
     this.scanCounter = 0;
@@ -240,13 +241,17 @@ class Manager extends EventEmitter {
 
   async disconnectLock(address) {
     const lock = this.pairedLocks.get(address);
+    this.interacting = false;
     if (typeof lock != "undefined" && lock.isConnected()) {
       try {
         console.log(`[Manager] Explicitly disconnecting lock ${address}`);
         await lock.disconnect();
       } catch (error) {
         console.error(`[Manager] Error explicitly disconnecting lock ${address}:`, error);
+        this.client.startMonitor();
       }
+    } else {
+      this.client.startMonitor();
     }
   }
 
@@ -698,6 +703,7 @@ class Manager extends EventEmitter {
    */
   async _connectLock(lock, readData = true) {
     if (this.scanning) return false;
+    this.interacting = true;
     if (!lock.isConnected()) {
       let wasMonitoring = false;
       try {
@@ -709,6 +715,7 @@ class Manager extends EventEmitter {
         const res = await lock.connect(!readData);
         if (!res) {
           console.log("Connect to lock failed", lock.getAddress());
+          this.interacting = false;
           if (wasMonitoring) {
             console.log("[Manager] Restarting monitor after failed connection...");
             this.client.startMonitor();
@@ -717,6 +724,7 @@ class Manager extends EventEmitter {
         }
       } catch (error) {
         console.error(error);
+        this.interacting = false;
         if (wasMonitoring) {
           console.log("[Manager] Restarting monitor after connection exception...");
           this.client.startMonitor();
@@ -851,6 +859,10 @@ class Manager extends EventEmitter {
    */
   async _onLockDisconnected(lock) {
     console.log("Disconnected from lock " + lock.getAddress());
+    if (this.interacting) {
+      console.log("[Manager] Skipping monitor auto-restart because an interaction is in progress");
+      return;
+    }
     this.client.startMonitor();
   }
 

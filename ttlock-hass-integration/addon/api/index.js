@@ -270,6 +270,7 @@ module.exports = async (server) => {
               } else {
                 api.sendOperationLog(msg.data.address, operations);
               }
+              await manager.disconnectLock(msg.data.address);
             }
             break;
 

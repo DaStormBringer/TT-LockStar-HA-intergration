@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.6.2] - 2026-06-18
+- Add missing `disconnectLock` call after getting operation logs
+- Prevent noble auto-monitoring race condition/crashes when querying the lock immediately after a disconnect
+
 ## [0.6.1] - 2026-06-18
 - Fix startup crash caused by missing imports in backend manager module
 
