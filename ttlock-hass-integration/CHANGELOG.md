@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0] - 2026-06-18
+- Add persistent caching for credentials (PINs, cards, fingerprints) and operation logs to avoid redundant BLE connections
+- Add manual "Refresh" buttons to both Operation Log and Credentials views to force updates from the lock
+- Implement a global console wrapper/filter to hide verbose SDK debugging messages from supervisor logs unless `debug_communication` is enabled
+- Add a "Permanent" toggle switch for IC Cards and Fingerprints, hiding date-time selectors and defaulting to standard permanent lifespans
+- Restrict and disable the type selector dropdown in the PIN passcode dialog to enforce Permanent passcodes
+- Fix a typo in `Passcode.vue` preventing `endDate` setting for passcodes
+
 ## [0.5.7] - 2026-06-18
 - Speed up BLE connections by pausing background monitor/scanning during connection establishment
 - Add connection concurrency protection per lock in status update handlers to prevent "Connect already in progress" errors
