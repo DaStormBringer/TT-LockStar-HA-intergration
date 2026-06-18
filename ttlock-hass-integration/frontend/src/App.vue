@@ -25,6 +25,12 @@
           <v-icon>mdi-sync</v-icon>
         </v-btn>
       </template>
+      <template v-else-if="isOperations">
+        <v-progress-circular v-if="isWaitingOperations" indeterminate color="primary"></v-progress-circular>
+        <v-btn v-else icon v-on:click="refreshOperations" title="Refresh operation log">
+          <v-icon>mdi-sync</v-icon>
+        </v-btn>
+      </template>
     </v-app-bar>
 
     <v-main>
@@ -70,6 +76,9 @@ export default {
     isCredentials() {
       return this.$route.name == "Credentials";
     },
+    isOperations() {
+      return this.$route.name == "Operations";
+    },
     isSettings() {
       return this.$route.name == "Settings";
     },
@@ -78,6 +87,9 @@ export default {
     },
     isWaitingCredentials() {
       return this.$store.state.waitingCredentials;
+    },
+    isWaitingOperations() {
+      return this.$store.state.waitingOperations;
     },
     isWaitingAutoLock() {
       return this.$store.state.waitingAutoLock;
@@ -100,7 +112,13 @@ export default {
     refreshCredentials() {
       const address = this.$store.state.activeLockAddress;
       if (address != "") {
-        this.$store.dispatch("readCredentials", address);
+        this.$store.dispatch("readCredentials", { lockAddress: address, forceRefresh: true });
+      }
+    },
+    refreshOperations() {
+      const address = this.$store.state.activeLockAddress;
+      if (address != "") {
+        this.$store.dispatch("readOperations", { lockAddress: address, forceRefresh: true });
       }
     },
     editConfig() {

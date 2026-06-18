@@ -88,11 +88,12 @@ class Api {
     }));
   }
 
-  async requestCredentials(address) {
+  async requestCredentials(address, forceRefresh = false) {
     this.ws.send(JSON.stringify({
       type: "credentials",
       data: {
-        address: address
+        address: address,
+        forceRefresh: forceRefresh
       }
     }));
   }
@@ -155,11 +156,12 @@ class Api {
     }));
   }
 
-  async requestOperations(address) {
+  async requestOperations(address, forceRefresh = false) {
     this.ws.send(JSON.stringify({
       type: "operations",
       data: {
-        address: address
+        address: address,
+        forceRefresh: forceRefresh
       }
     }));
   }

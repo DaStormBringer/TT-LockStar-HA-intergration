@@ -1,8 +1,25 @@
-'use strict';
-
-const EventEmitter = require('events');
-const store = require("./store");
-const { TTLockClient, AudioManage, LockedStatus, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
+// Global console.log wrapper to suppress verbose SDK logs unless TTLOCK_DEBUG_COMM is enabled
+const originalConsoleLog = console.log;
+console.log = function (...args) {
+  if (process.env.TTLOCK_DEBUG_COMM !== '1') {
+    const firstArg = args[0];
+    if (typeof firstArg === 'string' && (
+      firstArg.startsWith('=========') ||
+      firstArg.startsWith('BLE Device') ||
+      firstArg.startsWith('Sending command:') ||
+      firstArg.startsWith('Received response:') ||
+      firstArg.startsWith('Peripheral connect') ||
+      firstArg.startsWith('Device emiting') ||
+      firstArg.startsWith('Lock waiting') ||
+      firstArg.startsWith('Connect allready') ||
+      firstArg.startsWith('Lock connect') ||
+      firstArg.startsWith('[MonkeyPatch]')
+    )) {
+      return;
+    }
+  }
+  originalConsoleLog.apply(console, args);
+};
 
 // Monkey patch ttlock-sdk-js connection timeouts to handle weak BLE signals / slower HA BT adapters
 try {
@@ -276,15 +293,32 @@ class Manager extends EventEmitter {
     return false;
   }
 
-  async getCredentials(address) {
-    const passcodes = await this.getPasscodes(address);
-    const cards = await this.getCards(address);
-    const fingers = await this.getFingers(address);
-    return {
+  async getCredentials(address, forceRefresh = false) {
+    if (!forceRefresh) {
+      const cached = store.getCredentialsCache(address);
+      if (cached) {
+        return cached;
+      }
+    }
+    const passcodes = await this.getPasscodes(address, forceRefresh);
+    const cards = await this.getCards(address, forceRefresh);
+    const fingers = await this.getFingers(address, forceRefresh);
+    const creds = {
       passcodes: passcodes,
       cards: cards,
       fingers: fingers
     };
+    if (passcodes !== false || cards !== false || fingers !== false) {
+      const existing = store.getCredentialsCache(address) || { passcodes: [], cards: [], fingers: [] };
+      const newCreds = {
+        passcodes: passcodes !== false ? passcodes : existing.passcodes,
+        cards: cards !== false ? cards : existing.cards,
+        fingers: fingers !== false ? fingers : existing.fingers
+      };
+      store.setCredentialsCache(address, newCreds);
+      return newCreds;
+    }
+    return creds;
   }
 
   async addPasscode(address, type, passCode, startDate, endDate) {
@@ -344,7 +378,13 @@ class Manager extends EventEmitter {
     return false;
   }
 
-  async getPasscodes(address) {
+  async getPasscodes(address, forceRefresh = false) {
+    if (!forceRefresh) {
+      const cached = store.getCredentialsCache(address);
+      if (cached && cached.passcodes) {
+        return cached.passcodes;
+      }
+    }
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
       if (!lock.hasPassCode()) {
@@ -355,6 +395,9 @@ class Manager extends EventEmitter {
       }
       try {
         const passcodes = await lock.getPassCodes();
+        const cached = store.getCredentialsCache(address) || { passcodes: [], cards: [], fingers: [] };
+        cached.passcodes = passcodes;
+        store.setCredentialsCache(address, cached);
         return passcodes;
       } catch (error) {
         console.error(error);
@@ -423,7 +466,13 @@ class Manager extends EventEmitter {
     return false;
   }
 
-  async getCards(address) {
+  async getCards(address, forceRefresh = false) {
+    if (!forceRefresh) {
+      const cached = store.getCredentialsCache(address);
+      if (cached && cached.cards) {
+        return cached.cards;
+      }
+    }
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
       if (!lock.hasICCard()) {
@@ -439,6 +488,9 @@ class Manager extends EventEmitter {
             card.alias = store.getCardAlias(card.cardNumber);
           }
         }
+        const cached = store.getCredentialsCache(address) || { passcodes: [], cards: [], fingers: [] };
+        cached.cards = cards;
+        store.setCredentialsCache(address, cached);
         return cards;
       } catch (error) {
         console.error(error);
@@ -507,7 +559,13 @@ class Manager extends EventEmitter {
     return false;
   }
 
-  async getFingers(address) {
+  async getFingers(address, forceRefresh = false) {
+    if (!forceRefresh) {
+      const cached = store.getCredentialsCache(address);
+      if (cached && cached.fingers) {
+        return cached.fingers;
+      }
+    }
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
       if (!lock.hasFingerprint()) {
@@ -523,6 +581,9 @@ class Manager extends EventEmitter {
             finger.alias = store.getFingerAlias(finger.fpNumber);
           }
         }
+        const cached = store.getCredentialsCache(address) || { passcodes: [], cards: [], fingers: [] };
+        cached.fingers = fingers;
+        store.setCredentialsCache(address, cached);
         return fingers;
       } catch (error) {
         console.error(error);
@@ -557,6 +618,12 @@ class Manager extends EventEmitter {
     if (typeof reload == "undefined") {
       reload = false;
     }
+    if (!reload) {
+      const cached = store.getOperationsCache(address);
+      if (cached) {
+        return cached;
+      }
+    }
     if (typeof lock != "undefined") {
       if (!(await this._connectLock(lock))) {
         return false;
@@ -587,6 +654,7 @@ class Manager extends EventEmitter {
             validOperations.push(operation);
           }
         }
+        store.setOperationsCache(address, validOperations);
         return validOperations;
       } catch (error) {
         console.error(error);

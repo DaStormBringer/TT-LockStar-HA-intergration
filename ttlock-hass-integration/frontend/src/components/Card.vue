@@ -16,8 +16,11 @@
               <v-col cols="12" class="mb-3">
                 <v-text-field hint="A name so you can identify this card" persistent-hint prepend-icon="mdi-label" label="Alias" v-model="alias"></v-text-field>
               </v-col>
+              <v-col cols="12" class="pt-0">
+                <v-switch v-model="isPermanent" label="Permanent"></v-switch>
+              </v-col>
             </v-row>
-            <v-row no-gutters>
+            <v-row no-gutters v-if="!isPermanent">
               <v-col cols="6" sm="3">
                 <v-menu v-model="startDateMenu" :close-on-content-click="false" :nudge-right="40" transition="scale-transition" offset-y min-width="290px">
                   <template v-slot:activator="{ on, attrs }">
@@ -94,6 +97,7 @@ export default {
   data: function () {
     return {
       card: {},
+      isPermanent: true,
       startDateMenu: false,
       startDate: "",
       startTimeMenu: false,
@@ -123,15 +127,22 @@ export default {
           endDate: "209912012359",
           alias: ""
         };
+        this.isPermanent = true;
       } else {
         this.card = JSON.parse(JSON.stringify(card));
+        this.isPermanent = (this.card.endDate === "209912012359");
       }
     },
     async saveCard() {
       if (this.busy) return;
       this.busy = true;
-      this.card.startDate = this.startDate.split("-").join("") + this.startTime.split(":").join("");
-      this.card.endDate = this.endDate.split("-").join("") + this.endTime.split(":").join("");
+      if (this.isPermanent) {
+        this.card.startDate = "200001010000";
+        this.card.endDate = "209912012359";
+      } else {
+        this.card.startDate = this.startDate.split("-").join("") + this.startTime.split(":").join("");
+        this.card.endDate = this.endDate.split("-").join("") + this.endTime.split(":").join("");
+      }
       this.card.alias = this.alias;
       await this.$store.dispatch("setCard", {
         lockAddress: this.address,
@@ -154,6 +165,7 @@ export default {
       }
     },
     card(newVal) {
+      this.isPermanent = (newVal.endDate === "209912012359");
       const startDate = moment(newVal.startDate, "YYYYMMDDHHmm");
       this.startDate = startDate.format("YYYY-MM-DD");
       this.startTime = startDate.format("HH:mm");

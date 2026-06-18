@@ -110,7 +110,8 @@ module.exports = async (server) => {
                 break;
               }
 
-              const credentials = await manager.getCredentials(msg.data.address);
+              const forceRefresh = !!msg.data.forceRefresh;
+              const credentials = await manager.getCredentials(msg.data.address, forceRefresh);
               if (credentials !== false) {
                 api.sendCredentials(msg.data.address, credentials);
               } else { // notify failure
@@ -138,7 +139,7 @@ module.exports = async (server) => {
               }
               if (res) {
                 // send updated passcode list
-                const passcodes = await manager.getPasscodes(msg.data.address);
+                const passcodes = await manager.getPasscodes(msg.data.address, true);
                 if (passcodes !== false) {
                   api.sendPasscodes(msg.data.address, passcodes);
                 } else { // notify failure
@@ -171,7 +172,7 @@ module.exports = async (server) => {
                 api.sendError("Card operation failed", msg);
               } else {
                 // send updated cards list
-                const cards = await manager.getCards(msg.data.address);
+                const cards = await manager.getCards(msg.data.address, true);
                 if (cards !== false) {
                   api.sendCards(msg.data.address, cards);
                 } else { // notify failure
@@ -202,7 +203,7 @@ module.exports = async (server) => {
                 api.sendError("Fingerprint operation failed", msg);
               } else {
                 // send updated fingerprints list
-                const fingers = await manager.getFingers(msg.data.address);
+                const fingers = await manager.getFingers(msg.data.address, true);
                 if (fingers !== false) {
                   api.sendFingers(msg.data.address, fingers);
                 } else { // notify failure
@@ -262,7 +263,8 @@ module.exports = async (server) => {
 
           case "operations":
             if (msg.data && msg.data.address) {
-              const operations = await manager.getOperationLog(msg.data.address);
+              const forceRefresh = !!msg.data.forceRefresh;
+              const operations = await manager.getOperationLog(msg.data.address, forceRefresh);
               if (operations === false) {
                 api.sendError("Failed getting operation log", msg);
               } else {

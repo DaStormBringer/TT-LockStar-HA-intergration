@@ -16,8 +16,11 @@
               <v-col cols="12" class="mb-3">
                 <v-text-field hint="A name so you can identify this finger" persistent-hint prepend-icon="mdi-label" label="Alias" v-model="alias"></v-text-field>
               </v-col>
+              <v-col cols="12" class="pt-0">
+                <v-switch v-model="isPermanent" label="Permanent"></v-switch>
+              </v-col>
             </v-row>
-            <v-row no-gutters>
+            <v-row no-gutters v-if="!isPermanent">
               <v-col cols="6" sm="3">
                 <v-menu v-model="startDateMenu" :close-on-content-click="false" :nudge-right="40" transition="scale-transition" offset-y min-width="290px">
                   <template v-slot:activator="{ on, attrs }">
@@ -99,6 +102,7 @@ export default {
   data: function () {
     return {
       finger: {},
+      isPermanent: true,
       startDateMenu: false,
       startDate: "",
       startTimeMenu: false,
@@ -131,15 +135,22 @@ export default {
           endDate: "209912012359",
           alias: ""
         };
+        this.isPermanent = true;
       } else {
         this.finger = JSON.parse(JSON.stringify(finger));
+        this.isPermanent = (this.finger.endDate === "209912012359");
       }
     },
     async saveFinger() {
       if (this.busy) return;
       this.busy = true;
-      this.finger.startDate = this.startDate.split("-").join("") + this.startTime.split(":").join("");
-      this.finger.endDate = this.endDate.split("-").join("") + this.endTime.split(":").join("");
+      if (this.isPermanent) {
+        this.finger.startDate = "200001010000";
+        this.finger.endDate = "209912012359";
+      } else {
+        this.finger.startDate = this.startDate.split("-").join("") + this.startTime.split(":").join("");
+        this.finger.endDate = this.endDate.split("-").join("") + this.endTime.split(":").join("");
+      }
       this.finger.alias = this.alias;
       await this.$store.dispatch("setFinger", {
         lockAddress: this.address,
@@ -162,6 +173,7 @@ export default {
       }
     },
     finger(newVal) {
+      this.isPermanent = (newVal.endDate === "209912012359");
       const startDate = moment(newVal.startDate, "YYYYMMDDHHmm");
       this.startDate = startDate.format("YYYY-MM-DD");
       this.startTime = startDate.format("HH:mm");

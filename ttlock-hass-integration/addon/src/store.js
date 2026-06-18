@@ -11,6 +11,8 @@ class Store {
       card: {},
       finger: {}
     };
+    this.credentialsCache = {};
+    this.operationsCache = {};
   }
 
   setDataPath(path) {
@@ -81,6 +83,24 @@ class Store {
     this.saveData();
   }
 
+  getCredentialsCache(address) {
+    return this.credentialsCache[address] || null;
+  }
+
+  setCredentialsCache(address, creds) {
+    this.credentialsCache[address] = creds;
+    this.saveData();
+  }
+
+  getOperationsCache(address) {
+    return this.operationsCache[address] || null;
+  }
+
+  setOperationsCache(address, ops) {
+    this.operationsCache[address] = ops;
+    this.saveData();
+  }
+
   async loadData() {
     try {
       await fs.access(this.settingsPath + "/lockData.json");
@@ -106,6 +126,20 @@ class Store {
         console.error("Error loading aliasData.json:", error);
       }
     }
+    try {
+      await fs.access(this.settingsPath + "/credentialsCache.json");
+      const credsTxt = (await fs.readFile(this.settingsPath + "/credentialsCache.json")).toString();
+      this.credentialsCache = JSON.parse(credsTxt);
+    } catch (error) {
+      this.credentialsCache = {};
+    }
+    try {
+      await fs.access(this.settingsPath + "/operationsCache.json");
+      const opsTxt = (await fs.readFile(this.settingsPath + "/operationsCache.json")).toString();
+      this.operationsCache = JSON.parse(opsTxt);
+    } catch (error) {
+      this.operationsCache = {};
+    }
 
     return this.lockData;
   }
@@ -118,6 +152,16 @@ class Store {
     }
     try {
       await fs.writeFile(this.settingsPath + "/aliasData.json", Buffer.from(JSON.stringify(this.aliasData)));
+    } catch (error) {
+      console.error(error);
+    }
+    try {
+      await fs.writeFile(this.settingsPath + "/credentialsCache.json", Buffer.from(JSON.stringify(this.credentialsCache)));
+    } catch (error) {
+      console.error(error);
+    }
+    try {
+      await fs.writeFile(this.settingsPath + "/operationsCache.json", Buffer.from(JSON.stringify(this.operationsCache)));
     } catch (error) {
       console.error(error);
     }

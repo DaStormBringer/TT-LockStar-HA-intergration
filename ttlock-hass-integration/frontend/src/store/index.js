@@ -196,11 +196,16 @@ const store = new Vuex.Store({
       commit("setWaitingAutoLock", true);
       api.setAutoLock(lockAddress, time);
     },
-    async readCredentials({ state, commit }, lockAddress) {
+    async readCredentials({ state, commit }, payload) {
       if (state.waiting || state.waitingCredentials) return;
       commit("setWaitingCredentials");
-      // TODO:check if credentials are already loaded
-      api.requestCredentials(lockAddress);
+      let address = payload;
+      let forceRefresh = false;
+      if (payload && typeof payload === 'object') {
+        address = payload.lockAddress;
+        forceRefresh = !!payload.forceRefresh;
+      }
+      api.requestCredentials(address, forceRefresh);
     },
     async setPasscode({ state, commit }, { lockAddress, passcode }) {
       if (state.waiting || state.waitingCredentials) return;
@@ -234,10 +239,16 @@ const store = new Vuex.Store({
       commit("setWaitingSettings", true);
       api.saveSettings(lockAddress, settings);
     },
-    async readOperations({state, commit}, lockAddress) {
+    async readOperations({state, commit}, payload) {
       if (state.waiting || state.waitingOperations) return;
       commit("setWaitingOperations", true);
-      api.requestOperations(lockAddress);
+      let address = payload;
+      let forceRefresh = false;
+      if (payload && typeof payload === 'object') {
+        address = payload.lockAddress;
+        forceRefresh = !!payload.forceRefresh;
+      }
+      api.requestOperations(address, forceRefresh);
     },
     async unpair({state, commit}, lockAddress) {
       if (state.waiting) return;

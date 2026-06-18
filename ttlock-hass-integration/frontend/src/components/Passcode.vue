@@ -14,7 +14,7 @@
           <v-container>
             <v-row>
               <v-col cols="12" sm="6">
-                <v-select v-model="passcode.type" :items="passcodeTypes"></v-select>
+                <v-select v-model="passcode.type" :items="passcodeTypes" disabled></v-select>
               </v-col>
               <v-col cols="12" sm="6">
                 <v-text-field v-model="passcode.newPassCode" label="PIN Code" hint="4 to 9 digits"></v-text-field>
@@ -82,7 +82,7 @@ export default {
         };
       } else {
         this.passcode = JSON.parse(JSON.stringify(passcode));
-        this.passCode.endDate = "209912012359";
+        this.passcode.endDate = "209912012359";
       }
     },
     async savePasscode() {
