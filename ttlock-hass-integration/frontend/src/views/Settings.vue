@@ -17,7 +17,7 @@
             label="Auto lock time"
             :hint="autoLockHint"
             persistent-hint
-            max="60"
+            max="300"
             min="0"
           >
           </v-slider>
@@ -29,7 +29,19 @@
             prepend-icon="mdi-volume-high"
             label="Sound"
             persistent-hint
-            hint="Enables or disables the very anyoing beep when pressing keys or unlocking"
+            hint="Enables or disables the beep when pressing keys or unlocking"
+            inset
+          >
+          </v-switch>
+        </v-col>
+        <v-col sm="6" cols="12">
+          <v-switch
+            v-model="proactiveLogs"
+            class="mt-0"
+            prepend-icon="mdi-file-eye"
+            label="Automatic operation log fetch"
+            persistent-hint
+            hint="When enabled, the add-on reconnects to fetch new operation logs after events. Disable it to fetch logs only when requested from the UI."
             inset
           >
           </v-switch>
@@ -74,6 +86,7 @@ export default {
       address: this.$route.params.address || this.address,
       autoLockTime: -1,
       audio: false,
+      proactiveLogs: true,
     };
   },
   computed: {
@@ -109,8 +122,11 @@ export default {
     audioChanged() {
       return this.audio != this.lock.audio;
     },
+    proactiveLogsChanged() {
+      return this.proactiveLogs != (typeof this.lock.proactiveLogs != "undefined" ? this.lock.proactiveLogs : true);
+    },
     changesMade() {
-      if (this.autoLockChanged || this.audioChanged) {
+      if (this.autoLockChanged || this.audioChanged || this.proactiveLogsChanged) {
         return true;
       }
       return false;
@@ -124,6 +140,7 @@ export default {
     } else {
       this.autoLockTime = this.lock.autoLockTime;
       this.audio = this.lock.audio;
+      this.proactiveLogs = typeof this.lock.proactiveLogs != "undefined" ? this.lock.proactiveLogs : true;
       this.$store.commit("setActiveLockAddress", this.lock.address);
     }
   },
@@ -155,6 +172,9 @@ export default {
       if (this.audioChanged) {
         settings.audio = this.audio;
       }
+      if (this.proactiveLogsChanged) {
+        settings.proactiveLogs = this.proactiveLogs;
+      }
       this.$store.dispatch("saveSettings", {
         lockAddress: this.lock.address,
         settings: settings,
@@ -166,6 +186,7 @@ export default {
       if (newVal == false) {
         this.autoLockTime = this.lock.autoLockTime;
         this.audio = this.lock.audio;
+        this.proactiveLogs = typeof this.lock.proactiveLogs != "undefined" ? this.lock.proactiveLogs : true;
       }
     },
   },

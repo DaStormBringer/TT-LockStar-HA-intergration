@@ -266,15 +266,16 @@ class Manager extends EventEmitter {
   async unlockLock(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!(await this._connectLock(lock))) {
-        return false;
-      }
-      try {
+      return await this._executeWithRetry(lock, "unlock", async () => {
         const res = await lock.unlock();
+        if (res && typeof lock.getLastOperationTimestamp === "function") {
+          const timestamp = lock.getLastOperationTimestamp();
+          if (typeof timestamp !== "undefined") {
+            this.emit("lockTimeUpdated", lock, timestamp);
+          }
+        }
         return res;
-      } catch (error) {
-        console.error(error);
-      }
+      });
     }
     return false;
   }
@@ -282,15 +283,16 @@ class Manager extends EventEmitter {
   async lockLock(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!(await this._connectLock(lock))) {
-        return false;
-      }
-      try {
+      return await this._executeWithRetry(lock, "lock", async () => {
         const res = await lock.lock();
+        if (res && typeof lock.getLastOperationTimestamp === "function") {
+          const timestamp = lock.getLastOperationTimestamp();
+          if (typeof timestamp !== "undefined") {
+            this.emit("lockTimeUpdated", lock, timestamp);
+          }
+        }
         return res;
-      } catch (error) {
-        console.error(error);
-      }
+      });
     }
     return false;
   }
@@ -305,6 +307,43 @@ class Manager extends EventEmitter {
         const res = await lock.setAutoLockTime(value);
         this.emit("lockUpdated", lock);
         return res;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return false;
+  }
+
+  async getLockTime(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined") {
+      if (!(await this._connectLock(lock))) {
+        return false;
+      }
+      try {
+        const time = await lock.getLockTime();
+        this.emit("lockTimeUpdated", lock, time);
+        return time;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return false;
+  }
+
+  async syncLockTime(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined") {
+      if (!(await this._connectLock(lock))) {
+        return false;
+      }
+      try {
+        const result = await lock.syncLockTime();
+        if (result) {
+          const time = await lock.getLockTime();
+          this.emit("lockTimeUpdated", lock, time);
+        }
+        return result;
       } catch (error) {
         console.error(error);
       }
@@ -632,6 +671,37 @@ class Manager extends EventEmitter {
     return false;
   }
 
+  async setProactiveLogFetching(address, enabled) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined" && typeof lock.setProactiveLogFetching === "function") {
+      lock.setProactiveLogFetching(enabled == true);
+    }
+
+    const lockData = store.getLockData();
+    let updated = false;
+    for (let i = 0; i < lockData.length; i++) {
+      if (lockData[i].address == address) {
+        lockData[i].proactiveLogs = enabled == true;
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+      lockData.push({
+        address: address,
+        battery: 0,
+        rssi: 0,
+        autoLockTime: -1,
+        lockedStatus: -1,
+        privateData: {},
+        operationLog: [],
+        proactiveLogs: enabled == true
+      });
+    }
+    store.setLockData(lockData);
+    return true;
+  }
+
   async getOperationLog(address, reload) {
     const lock = this.pairedLocks.get(address);
     if (typeof reload == "undefined") {
@@ -757,6 +827,36 @@ class Manager extends EventEmitter {
     return true;
   }
 
+  /**
+   * Retry lock/unlock operations after a BLE disconnect while preserving the
+   * per-lock connection mutex used by the PiexlPuck branch.
+   */
+  async _executeWithRetry(lock, operationName, operationFn, maxRetries = 3) {
+    const address = lock.getAddress();
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      if (!(await this._connectLock(lock))) {
+        if (attempt < maxRetries) await sleep(1000);
+        continue;
+      }
+
+      try {
+        const result = await operationFn();
+        if (result !== false || lock.isConnected()) {
+          return result;
+        }
+        console.warn(`Lock disconnected during ${operationName}; retrying (${attempt}/${maxRetries})`);
+      } catch (error) {
+        console.error(`Error during ${operationName}:`, error);
+        console.warn(`Resetting the BLE connection before retry ${attempt}/${maxRetries}`);
+      }
+
+      // Release both the SDK connection and PiexlPuck's mutex before retrying.
+      await this.disconnectLock(address);
+      if (attempt < maxRetries) await sleep(1000);
+    }
+    return false;
+  }
+
   async _onScanStarted() {
     this.scanning = true;
     console.log("BLE Scan started");
@@ -806,6 +906,12 @@ class Manager extends EventEmitter {
           if (result == true) {
             console.log("Successful connect attempt to paired lock", lock.getAddress());
             await this._processOperationLog(lock);
+            try {
+              const time = await lock.getLockTime();
+              this.emit("lockTimeUpdated", lock, time);
+            } catch (error) {
+              console.error("Failed to get lock time during discovery:", error);
+            }
           } else {
             console.log("Unsuccessful connect attempt to paired lock", lock.getAddress());
             this.connectQueue.add(lock.getAddress());
@@ -914,7 +1020,8 @@ class Manager extends EventEmitter {
     this.processingLocks.add(address);
     try {
       console.log("lockUpdated", paramsChanged);
-      if (paramsChanged.newEvents == true && lock.hasNewEvents()) {
+      const proactiveLogsEnabled = typeof lock.hasProactiveLogFetching !== "function" || lock.hasProactiveLogFetching();
+      if (paramsChanged.newEvents == true && lock.hasNewEvents() && proactiveLogsEnabled) {
         const connected = await this._connectLock(lock, true);
         if (connected) {
           await this._processOperationLog(lock);

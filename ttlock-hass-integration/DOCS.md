@@ -27,3 +27,5 @@ debug_mqtt: false # Set to true to log MQTT discovery and state messages
 
 - **Low BLE Signal**: Low BLE signals can lead to failed pairing attempts or missing/corrupted log syncs. Keep your Home Assistant Bluetooth dongle as close to the lock as possible.
 - **Keypad Awake requirement**: The lock is offline and enters deep sleep when idle. It *must* be awake (keypad lit up) when attempting pairing, scans, or initial settings updates.
+- **G2 gateway is separate**: Updating or continuing to use a TTLock G2 gateway is fine, but this local add-on does not communicate through the G2. It requires a Bluetooth adapter directly available to the Home Assistant host.
+- **Do not pair-reset casually**: Pairing/reset operations can change local lock ownership data. Test with lock/unlock and status reads first, and keep the TTLock app/G2 path available until the local setup is proven stable.
