@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.17] - 2026-07-12
+
+- Record a timed alpha.16 unlock that exposed state after 7.5 seconds but required about 55 seconds for physical movement and the definitive command response.
+- Stop forcing every Noble connection to wait at least 40 seconds.
+- Give command-only raw-HCI connections a 6-second device timeout while preserving the long timeout for full metadata reads.
+- Remove the SDK's five nested retries for command-only connects so the manager can restart monitoring and rediscover a fresh peripheral.
+- Limit lock/unlock to two manager attempts separated by a 1.5-second rediscovery window.
+- Add regression coverage for the separate command and metadata timeout policies.
+
 ## [0.1.0-alpha.16] - 2026-07-12
 
 - Record that alpha.15 made three fresh BLE connections but each disconnected while `checkUserTime` awaited the lock response.

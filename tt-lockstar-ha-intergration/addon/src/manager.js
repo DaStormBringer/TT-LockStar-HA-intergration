@@ -40,17 +40,24 @@ console.log = function (...args) {
 try {
   const { NobleDevice } = require("ttlock-sdk-js/dist/scanner/noble/NobleDevice");
   const originalNobleConnect = NobleDevice.prototype.connect;
-  NobleDevice.prototype.connect = function (timeout = 40) {
-    const finalTimeout = Math.max(timeout, 40);
-    console.log(`[MonkeyPatch] NobleDevice.connect: forcing timeout to ${finalTimeout}s`);
+  NobleDevice.prototype.connect = function (timeout) {
+    const requestedTimeout = Number(timeout);
+    const finalTimeout = Number.isFinite(requestedTimeout) && requestedTimeout > 0
+      ? requestedTimeout
+      : 40;
+    console.log(`[MonkeyPatch] NobleDevice.connect: using timeout ${finalTimeout}s`);
     return originalNobleConnect.call(this, finalTimeout);
   };
 
   const { TTLock } = require("ttlock-sdk-js/dist/device/TTLock");
   const originalTTLockConnect = TTLock.prototype.connect;
-  TTLock.prototype.connect = function (skipDataRead = false, timeout = 45) {
-    const finalTimeout = Math.max(timeout, 45);
-    console.log(`[MonkeyPatch] TTLock.connect: forcing timeout to ${finalTimeout}s`);
+  TTLock.prototype.connect = function (skipDataRead = false, timeout) {
+    const requestedTimeout = Number(timeout);
+    const defaultTimeout = skipDataRead ? 8 : 45;
+    const finalTimeout = Number.isFinite(requestedTimeout) && requestedTimeout > 0
+      ? (skipDataRead ? requestedTimeout : Math.max(requestedTimeout, 45))
+      : defaultTimeout;
+    console.log(`[MonkeyPatch] TTLock.connect: using timeout ${finalTimeout}s`);
     return originalTTLockConnect.call(this, skipDataRead, finalTimeout);
   };
 
@@ -858,12 +865,12 @@ class Manager extends EventEmitter {
    * Retry lock/unlock operations after a BLE disconnect while preserving the
    * per-lock connection mutex used by the PiexlPuck branch.
    */
-  async _executeWithRetry(lock, operationName, operationFn, maxRetries = 3) {
+  async _executeWithRetry(lock, operationName, operationFn, maxRetries = 2) {
     const address = lock.getAddress();
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       console.log(`[Manager] ${operationName} attempt ${attempt}/${maxRetries}`);
       if (!(await this._connectLock(lock, false))) {
-        if (attempt < maxRetries) await sleep(1000);
+        if (attempt < maxRetries) await sleep(1500);
         continue;
       }
 
@@ -881,7 +888,7 @@ class Manager extends EventEmitter {
 
       // Release both the SDK connection and PiexlPuck's mutex before retrying.
       await this.disconnectLock(address);
-      if (attempt < maxRetries) await sleep(1000);
+      if (attempt < maxRetries) await sleep(1500);
     }
     return false;
   }

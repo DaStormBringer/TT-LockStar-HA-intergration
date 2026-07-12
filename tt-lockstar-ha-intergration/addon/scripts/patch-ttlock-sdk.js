@@ -13,6 +13,7 @@ const NOBLE_WITH_BINDINGS_SHIM_MARKER = 'TT_LOCKSTAR_WITH_BINDINGS_SHIM';
 const NOBLE_DBUS_STATE_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_LIVE_STATE';
 const FAST_COMMAND_DEVICE_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_DEVICE_CONNECT';
 const FAST_COMMAND_LOCK_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_LOCK_CONNECT';
+const FAST_COMMAND_TIMEOUT_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_TIMEOUT';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
   const count = source.split(expected).length - 1;
@@ -151,8 +152,14 @@ function patchFastCommandDeviceConnect(source) {
     '    async connect() {',
     `    // ${FAST_COMMAND_DEVICE_PATCH_MARKER}: command-only connections still
     // discover the TTLock service but skip cached GAP/device-information reads.
-    async connect(skipBasicInfo = false) {`,
+    async connect(skipBasicInfo = false, connectTimeoutSeconds = 40) {`,
     'TTBluetoothDevice command-only connect signature',
+  );
+  patched = replaceExactlyOnce(
+    patched,
+    '            if (await this.device.connect()) {',
+    '            if (await this.device.connect(connectTimeoutSeconds)) {',
+    'TTBluetoothDevice command connect timeout propagation',
   );
   patched = replaceExactlyOnce(
     patched,
@@ -184,14 +191,34 @@ function patchFastCommandDeviceConnect(source) {
 
 function patchFastCommandLockConnect(source) {
   if (source.includes(FAST_COMMAND_LOCK_PATCH_MARKER)) return source;
-  return replaceExactlyOnce(
+  let patched = replaceExactlyOnce(
     source,
     '            connected = await this.device.connect();',
     `            // ${FAST_COMMAND_LOCK_PATCH_MARKER}: pass the existing
             // command-only policy through to the Bluetooth setup layer.
-            connected = await this.device.connect(this.skipDataRead);`,
+            connected = await this.device.connect(
+                this.skipDataRead,
+                this.skipDataRead ? 6 : 40,
+            );`,
     'TTLock command-only device connect propagation',
   );
+  patched = replaceExactlyOnce(
+    patched,
+    '        const maxRetries = 5;',
+    `        // ${FAST_COMMAND_TIMEOUT_PATCH_MARKER}: stale command handles must
+        // fail quickly so the manager can resume scanning and rediscover a fresh peripheral.
+        const maxRetries = this.skipDataRead ? 1 : 5;`,
+    'TTLock command-only nested retry limit',
+  );
+  patched = replaceExactlyOnce(
+    patched,
+    '                await (0, timingUtil_1.sleep)(1000); // Wait a bit before retrying',
+    `                if (retries < maxRetries) {
+                    await (0, timingUtil_1.sleep)(this.skipDataRead ? 250 : 1000);
+                }`,
+    'TTLock command-only nested retry delay',
+  );
+  return patched;
 }
 
 function patchLockStateAdvertisement(source) {

@@ -1,6 +1,8 @@
 'use strict';
 
-const DEFAULT_HARD_CONNECT_TIMEOUT_MS = 55000;
+const DEFAULT_FULL_CONNECT_TIMEOUT_MS = 55000;
+const DEFAULT_COMMAND_CONNECT_TIMEOUT_MS = 12000;
+const DEFAULT_HARD_CONNECT_TIMEOUT_MS = DEFAULT_FULL_CONNECT_TIMEOUT_MS;
 
 class LockConnectTimeoutError extends Error {
   constructor(timeoutMs) {
@@ -16,8 +18,11 @@ class LockConnectTimeoutError extends Error {
  */
 async function connectWithPolicy(lock, {
   readData = true,
-  timeoutMs = DEFAULT_HARD_CONNECT_TIMEOUT_MS,
+  timeoutMs,
 } = {}) {
+  const effectiveTimeoutMs = timeoutMs ?? (
+    readData ? DEFAULT_FULL_CONNECT_TIMEOUT_MS : DEFAULT_COMMAND_CONNECT_TIMEOUT_MS
+  );
   const skipDataRead = !readData;
   let timer;
 
@@ -25,7 +30,10 @@ async function connectWithPolicy(lock, {
     return await Promise.race([
       Promise.resolve().then(() => lock.connect(skipDataRead)),
       new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new LockConnectTimeoutError(timeoutMs)), timeoutMs);
+        timer = setTimeout(
+          () => reject(new LockConnectTimeoutError(effectiveTimeoutMs)),
+          effectiveTimeoutMs,
+        );
       }),
     ]);
   } finally {
@@ -34,6 +42,8 @@ async function connectWithPolicy(lock, {
 }
 
 module.exports = {
+  DEFAULT_COMMAND_CONNECT_TIMEOUT_MS,
+  DEFAULT_FULL_CONNECT_TIMEOUT_MS,
   DEFAULT_HARD_CONNECT_TIMEOUT_MS,
   LockConnectTimeoutError,
   connectWithPolicy,

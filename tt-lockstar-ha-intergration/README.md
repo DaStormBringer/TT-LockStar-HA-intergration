@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.16`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.17`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -45,6 +45,8 @@ Alpha.15 invalidates stale D-Bus `Connected` and `ServicesResolved` cache entrie
 Alpha.16 retains D-Bus as an explicit experimental option but defaults to the legacy raw-HCI transport that completed the alpha.13 supervised physical test. An upgrade that does not yet contain `bluetooth_transport` also defaults safely to `raw_hci`. This restores a known command path; it does not make unattended lock control production-ready.
 
 The installed alpha.16 image completed a supervised open-door physical cycle. Unlock returned `true` on the first manager attempt, the bolt retracted, and Home Assistant changed to `unlocked`. An immediate relock then failed: attempt 1 hit the 55-second hard timeout and attempts 2–3 could not connect, leaving the bolt physically retracted. Restarting only this add-on cleared Noble's stale raw-HCI session; the following lock returned `true` on its first manager attempt, extended the bolt, and changed Home Assistant to `locked`. Raw HCI can operate the lock, but sequential command recovery remains a blocking reliability defect.
+
+Alpha.17 replaces the inherited 40–55 second command connection waits with a short command-only policy: one 6-second raw-HCI attempt per manager attempt, two manager attempts, and a 1.5-second scan window for peripheral rediscovery. Full metadata operations retain their longer timeout. This is intended to turn stale-handle delays into a bounded retry measured in seconds, but still requires supervised timing validation on the real lock.
 
 ## Features
 
