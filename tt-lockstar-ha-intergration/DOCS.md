@@ -31,4 +31,5 @@ debug_mqtt: false # Set to true to log MQTT discovery and state messages
 - **G2 gateway is separate**: Updating or continuing to use a TTLock G2 gateway is fine, but this local add-on does not communicate through the G2. It requires a Bluetooth adapter directly available to the Home Assistant host.
 - **Transport choice**: `raw_hci` is the default because it completed the supervised alpha.13 lock/unlock test. `dbus` is retained for development but repeatedly disconnected while waiting for command responses in alpha.14 and alpha.15 tests.
 - **Adapter contention**: Raw HCI needs direct adapter ownership. Other software using the same adapter can interfere with commands; dedicate an adapter to this add-on when possible.
+- **Sequential raw-HCI commands**: A supervised alpha.16 unlock succeeded, but the immediate relock could not reconnect until this add-on was restarted. Do not rely on back-to-back commands or unattended recovery yet.
 - **Do not pair-reset casually**: Pairing/reset operations can change local lock ownership data. Test with lock/unlock and status reads first, and keep the TTLock app/G2 path available until the local setup is proven stable.
