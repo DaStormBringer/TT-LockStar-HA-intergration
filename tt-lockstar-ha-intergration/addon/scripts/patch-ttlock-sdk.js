@@ -7,6 +7,7 @@ const EXPECTED_VERSION = '0.3.34';
 const PATCH_MARKER = 'TT_LOCKSTAR_REFRESH_PERIPHERAL';
 const STATE_PATCH_MARKER = 'TT_LOCKSTAR_CONFIRMED_LOCK_STATE';
 const STATUS_QUERY_PATCH_MARKER = 'TT_LOCKSTAR_DEADBOLT_STATUS_QUERY';
+const STATE_INIT_PATCH_MARKER = 'TT_LOCKSTAR_CONFIRMED_STATE_INIT';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
   const count = source.split(expected).length - 1;
@@ -89,6 +90,42 @@ function patchLockStateAdvertisement(source) {
   );
 }
 
+function patchLockStateInitialization(source) {
+  if (source.includes(STATE_INIT_PATCH_MARKER)) return source;
+  let patched = replaceExactlyOnce(
+    source,
+    `        if (this.device.isUnlock) {
+            this.lockedStatus = LockedStatus_1.LockedStatus.UNLOCKED;
+        }
+        else {
+            this.lockedStatus = LockedStatus_1.LockedStatus.LOCKED;
+        }`,
+    `        // ${STATE_INIT_PATCH_MARKER}: idle room-lock advertisements are not
+        // proof that a deadbolt is locked. Start unknown unless unlock is explicit.
+        if (this.device.isUnlock) {
+            this.lockedStatus = LockedStatus_1.LockedStatus.UNLOCKED;
+        }
+        else if (this.device.isBicycleLock) {
+            this.lockedStatus = LockedStatus_1.LockedStatus.LOCKED;
+        }
+        else {
+            this.lockedStatus = LockedStatus_1.LockedStatus.UNKNOWN;
+        }`,
+    'TTLockApi constructor state initialization',
+  );
+  patched = replaceExactlyOnce(
+    patched,
+    '        this.privateData.pwdInfo = privateData.pwdInfo;',
+    `        this.privateData.pwdInfo = privateData.pwdInfo;
+        if (data.lockedStatus === LockedStatus_1.LockedStatus.LOCKED
+            || data.lockedStatus === LockedStatus_1.LockedStatus.UNLOCKED) {
+            this.lockedStatus = data.lockedStatus;
+        }`,
+    'TTLockApi confirmed state restore',
+  );
+  return patched;
+}
+
 function patchDeadboltStatusQuery(source) {
   if (source.includes(STATUS_QUERY_PATCH_MARKER)) return source;
   let patched = replaceExactlyOnce(
@@ -121,7 +158,10 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   const lockPath = path.join(sdkRoot, 'dist', 'device', 'TTLock.js');
   fs.writeFileSync(devicePath, patchNobleDevice(fs.readFileSync(devicePath, 'utf8')));
   fs.writeFileSync(scannerPath, patchNobleScanner(fs.readFileSync(scannerPath, 'utf8')));
-  fs.writeFileSync(lockApiPath, patchLockStateAdvertisement(fs.readFileSync(lockApiPath, 'utf8')));
+  let lockApiSource = fs.readFileSync(lockApiPath, 'utf8');
+  lockApiSource = patchLockStateInitialization(lockApiSource);
+  lockApiSource = patchLockStateAdvertisement(lockApiSource);
+  fs.writeFileSync(lockApiPath, lockApiSource);
   fs.writeFileSync(lockPath, patchDeadboltStatusQuery(fs.readFileSync(lockPath, 'utf8')));
   console.log(`Patched ttlock-sdk-js ${EXPECTED_VERSION} Noble reconnect handling`);
 }
@@ -132,6 +172,7 @@ module.exports = {
   patchInstalledSdk,
   patchDeadboltStatusQuery,
   patchLockStateAdvertisement,
+  patchLockStateInitialization,
   patchNobleDevice,
   patchNobleScanner,
 };

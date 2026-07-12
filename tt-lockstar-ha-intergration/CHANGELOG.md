@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0-alpha.7] - 2026-07-11
+
+- Initialize idle room deadbolts with unknown state instead of locked.
+- Restore `lockedStatus` only when it was saved from a confirmed lock/unlock command.
+- Keep imported `lockedStatus: -1` unknown until the first successful physical command.
+
 ## [0.1.0-alpha.6] - 2026-07-11
 
 - Keep room-deadbolt state unknown instead of using the SDK's bicycle-status command as a position sensor.

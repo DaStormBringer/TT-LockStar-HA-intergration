@@ -6,6 +6,7 @@ const test = require('node:test');
 const {
   patchDeadboltStatusQuery,
   patchLockStateAdvertisement,
+  patchLockStateInitialization,
   patchNobleDevice,
   patchNobleScanner,
 } = require('../scripts/patch-ttlock-sdk');
@@ -60,4 +61,21 @@ test('does not use the bicycle status command as a room-deadbolt state query', (
   assert.match(patched, /TT_LOCKSTAR_DEADBOLT_STATUS_QUERY/);
   assert.equal((patched.match(/this\.device\.isBicycleLock/g) || []).length, 2);
   assert.equal(patchDeadboltStatusQuery(patched), patched);
+});
+
+test('starts room deadbolts unknown and restores only confirmed saved state', () => {
+  const source = `        if (this.device.isUnlock) {
+            this.lockedStatus = LockedStatus_1.LockedStatus.UNLOCKED;
+        }
+        else {
+            this.lockedStatus = LockedStatus_1.LockedStatus.LOCKED;
+        }
+        this.privateData.pwdInfo = privateData.pwdInfo;`;
+
+  const patched = patchLockStateInitialization(source);
+
+  assert.match(patched, /TT_LOCKSTAR_CONFIRMED_STATE_INIT/);
+  assert.match(patched, /LockedStatus\.UNKNOWN/);
+  assert.match(patched, /data\.lockedStatus === LockedStatus_1\.LockedStatus\.LOCKED/);
+  assert.equal(patchLockStateInitialization(patched), patched);
 });
