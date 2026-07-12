@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.14`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.15`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -38,7 +38,9 @@ On 2026-07-12, `0.1.0-alpha.13` completed one supervised physical unlock and loc
 
 This is a single-device experimental result, not production qualification. Noble still emitted an intermittent `unknown peripheral null connected` warning during the successful lock attempt, so unattended control and auto-unlock remain out of scope.
 
-Alpha.14 replaces the former `@abandonware/noble` raw-HCI runtime with `@stoprocent/noble` 2.5.5 using BlueZ over host D-Bus. This preserves the configured adapter but is a new transport path; it has not inherited alpha.13's hardware-validation result and must be tested again at the open door.
+Alpha.14 replaced the former `@abandonware/noble` raw-HCI runtime with `@stoprocent/noble` 2.5.5 using BlueZ over host D-Bus. Two supervised unlock tests failed: the lock was visible at approximately -77 dB, but the BLE session disconnected during generic characteristic reads or while waiting for the `checkUserTime` response. The second test used an open door, extended deadbolt, and awake keypad, so strike resistance was excluded.
+
+Alpha.15 invalidates stale D-Bus `Connected` and `ServicesResolved` cache entries after a remote disconnect and gives command-only connections a shorter setup path that discovers the TTLock service without rereading cached generic device information. The image must still pass another supervised open-door hardware test before this change can be considered validated.
 
 ## Features
 
@@ -70,9 +72,9 @@ Alpha.14 replaces the former `@abandonware/noble` raw-HCI runtime with `@stoproc
 
 Pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in Home Assistant backups. Protect the host and its backups, and do not expose the add-on service directly to the internet.
 
-Alpha.14 changes the native Bluetooth dependency chain. Review the current build's audit output rather than relying on the alpha.13 advisory count, and do not apply `npm audit fix --force` without complete rebuild and regression testing.
+Alpha.15 uses the native Bluetooth dependency chain introduced in alpha.14. Review the current build's audit output rather than relying on an earlier advisory count, and do not apply `npm audit fix --force` without complete rebuild and regression testing.
 
-The validated alpha.14 image reports four moderate advisories and no high or critical advisories with `npm audit --omit=dev --omit=optional`. All four are the same transitive `xml2js` advisory propagated through `dbus-next`, Noble, and the SDK; npm reports no compatible automatic fix. Optional native HCI/socket packages are not installed.
+The validated alpha.15 image reports four moderate advisories and no high or critical advisories with `npm audit --omit=dev --omit=optional`. All four are the same transitive `xml2js` advisory propagated through `dbus-next`, Noble, and the SDK; npm reports no compatible automatic fix. Optional native HCI/socket packages are not installed.
 
 ## Attribution and license
 
