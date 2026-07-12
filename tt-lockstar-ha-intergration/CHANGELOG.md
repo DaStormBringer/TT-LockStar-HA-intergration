@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.15] - 2026-07-12
+
+- Record two failed supervised alpha.14 unlock tests, including an open-door, extended-bolt, awake-keypad test that excluded strike resistance.
+- Keep the maintained Noble D-Bus object cache synchronized with live BlueZ device properties.
+- Clear cached `Connected` and `ServicesResolved` flags when BlueZ reports a remote disconnect so retries cannot reuse a dead session.
+- Pass the existing command-only policy into the Bluetooth device setup layer.
+- Discover the TTLock service but skip cached GAP/device-information reads before lock and unlock commands, reducing the time before `checkUserTime` and the physical command.
+- Add fail-closed patch guards and regression tests for both D-Bus state invalidation and the command-only fast path.
+
 ## [0.1.0-alpha.14] - 2026-07-12
 
 - Replace the unmaintained `@abandonware/noble` runtime with an npm alias to maintained `@stoprocent/noble` 2.5.5.

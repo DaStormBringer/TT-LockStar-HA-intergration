@@ -5,11 +5,14 @@ const test = require('node:test');
 
 const {
   createNobleWithBindingsShim,
+  patchFastCommandDeviceConnect,
+  patchFastCommandLockConnect,
   patchDeadboltStatusQuery,
   patchLockStateAdvertisement,
   patchLockStateInitialization,
   patchNobleEntrypoint,
   patchNobleDevice,
+  patchNobleDbusStateCache,
   patchNobleScanner,
 } = require('../scripts/patch-ttlock-sdk');
 
@@ -54,9 +57,50 @@ test('patches the SDK to replace a stale Noble peripheral on rediscovery', () =>
   assert.equal(patchNobleScanner(patchedScanner), patchedScanner);
 });
 
+test('keeps the BlueZ D-Bus object cache synchronized across disconnects', () => {
+  const source = `      const c = unwrapDict(changed);
+      if ('RSSI' in c) {
+  _onDeviceDisconnected (id, reason) {
+    const device = this._devices.get(id);
+    if (!device) return;`;
+
+  const patched = patchNobleDbusStateCache(source);
+
+  assert.match(patched, /TT_LOCKSTAR_DBUS_LIVE_STATE/);
+  assert.match(patched, /Object\.assign\(stored\[DEVICE_IFACE\] \|\| \{\}, c\)/);
+  assert.match(patched, /Connected: false/);
+  assert.match(patched, /ServicesResolved: false/);
+  assert.equal(patchNobleDbusStateCache(patched), patched);
+});
+
+test('uses a shorter Bluetooth setup path for command-only connections', () => {
+  const deviceSource = `    async connect() {
+                    await this.readBasicInfo();
+    async readBasicInfo() {
+        if (typeof this.device != "undefined") {
+            console.log("BLE Device discover services start");
+            await this.device.discoverServices();
+            console.log("BLE Device discover services end");`;
+  const lockSource = '            connected = await this.device.connect();';
+
+  const patchedDevice = patchFastCommandDeviceConnect(deviceSource);
+  const patchedLock = patchFastCommandLockConnect(lockSource);
+
+  assert.match(patchedDevice, /TT_LOCKSTAR_FAST_COMMAND_DEVICE_CONNECT/);
+  assert.match(patchedDevice, /readBasicInfo\(skipBasicInfo\)/);
+  assert.match(patchedDevice, /if \(skipDeviceInfo\)/);
+  assert.match(patchedLock, /TT_LOCKSTAR_FAST_COMMAND_LOCK_CONNECT/);
+  assert.match(patchedLock, /device\.connect\(this\.skipDataRead\)/);
+  assert.equal(patchFastCommandDeviceConnect(patchedDevice), patchedDevice);
+  assert.equal(patchFastCommandLockConnect(patchedLock), patchedLock);
+});
+
 test('fails closed when the expected SDK code is not present', () => {
   assert.throws(() => patchNobleEntrypoint('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDevice('unexpected source'), /expected one match/);
+  assert.throws(() => patchNobleDbusStateCache('unexpected source'), /expected one match/);
+  assert.throws(() => patchFastCommandDeviceConnect('unexpected source'), /expected one match/);
+  assert.throws(() => patchFastCommandLockConnect('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleScanner('unexpected source'), /expected one match/);
 });
 

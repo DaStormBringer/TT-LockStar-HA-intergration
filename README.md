@@ -13,7 +13,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.14`
+- Add-on version: `0.1.0-alpha.15`
 - Home Assistant stage: `experimental`
 - Development branch: `codex/merge-rk392`
 - Target: Home Assistant on Linux
@@ -21,7 +21,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
-- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have all worked with the former raw-HCI transport; alpha.13 completed a supervised physical unlock/lock cycle using command-only connections. The alpha.14 BlueZ D-Bus transport still requires supervised hardware validation.
+- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have all worked with the former raw-HCI transport; alpha.13 completed a supervised physical unlock/lock cycle using command-only connections. Two supervised alpha.14 D-Bus unlock tests failed because the BLE session disconnected during setup or `checkUserTime`; alpha.15 contains an unvalidated reconnect-state and command-fast-path fix.
 - Production readiness: **not ready**
 
 The source repository may be stored or edited on Windows, but the deployable add-on image is Linux-native and was built with Docker Desktop's Linux engine.

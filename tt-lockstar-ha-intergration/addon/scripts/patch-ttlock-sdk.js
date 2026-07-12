@@ -10,6 +10,9 @@ const STATUS_QUERY_PATCH_MARKER = 'TT_LOCKSTAR_DEADBOLT_STATUS_QUERY';
 const STATE_INIT_PATCH_MARKER = 'TT_LOCKSTAR_CONFIRMED_STATE_INIT';
 const NOBLE_ENTRYPOINT_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_ADAPTER';
 const NOBLE_WITH_BINDINGS_SHIM_MARKER = 'TT_LOCKSTAR_WITH_BINDINGS_SHIM';
+const NOBLE_DBUS_STATE_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_LIVE_STATE';
+const FAST_COMMAND_DEVICE_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_DEVICE_CONNECT';
+const FAST_COMMAND_LOCK_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_LOCK_CONNECT';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
   const count = source.split(expected).length - 1;
@@ -100,6 +103,95 @@ module.exports = function (bindings) {
   return new Noble(bindings);
 };
 `;
+}
+
+function patchNobleDbusStateCache(source) {
+  if (source.includes(NOBLE_DBUS_STATE_PATCH_MARKER)) return source;
+
+  let patched = replaceExactlyOnce(
+    source,
+    `      const c = unwrapDict(changed);
+      if ('RSSI' in c) {`,
+    `      const c = unwrapDict(changed);
+      // ${NOBLE_DBUS_STATE_PATCH_MARKER}: keep the object cache synchronized
+      // with live BlueZ properties. Reconnect otherwise sees stale Connected
+      // and ServicesResolved values and reports a dead session as connected.
+      const stored = this._objects.get(device.path) || {};
+      stored[DEVICE_IFACE] = Object.assign(stored[DEVICE_IFACE] || {}, c);
+      this._objects.set(device.path, stored);
+      if ('RSSI' in c) {`,
+    '@stoprocent/noble D-Bus live property cache',
+  );
+
+  patched = replaceExactlyOnce(
+    patched,
+    `  _onDeviceDisconnected (id, reason) {
+    const device = this._devices.get(id);
+    if (!device) return;`,
+    `  _onDeviceDisconnected (id, reason) {
+    const device = this._devices.get(id);
+    if (!device) return;
+    const stored = this._objects.get(device.path) || {};
+    stored[DEVICE_IFACE] = Object.assign(stored[DEVICE_IFACE] || {}, {
+      Connected: false,
+      ServicesResolved: false
+    });
+    this._objects.set(device.path, stored);`,
+    '@stoprocent/noble D-Bus disconnect cache reset',
+  );
+
+  return patched;
+}
+
+function patchFastCommandDeviceConnect(source) {
+  if (source.includes(FAST_COMMAND_DEVICE_PATCH_MARKER)) return source;
+
+  let patched = replaceExactlyOnce(
+    source,
+    '    async connect() {',
+    `    // ${FAST_COMMAND_DEVICE_PATCH_MARKER}: command-only connections still
+    // discover the TTLock service but skip cached GAP/device-information reads.
+    async connect(skipBasicInfo = false) {`,
+    'TTBluetoothDevice command-only connect signature',
+  );
+  patched = replaceExactlyOnce(
+    patched,
+    '                    await this.readBasicInfo();',
+    '                    await this.readBasicInfo(skipBasicInfo);',
+    'TTBluetoothDevice command-only basic info call',
+  );
+  patched = replaceExactlyOnce(
+    patched,
+    `    async readBasicInfo() {
+        if (typeof this.device != "undefined") {
+            console.log("BLE Device discover services start");
+            await this.device.discoverServices();
+            console.log("BLE Device discover services end");`,
+    `    async readBasicInfo(skipDeviceInfo = false) {
+        if (typeof this.device != "undefined") {
+            console.log("BLE Device discover services start");
+            await this.device.discoverServices();
+            console.log("BLE Device discover services end");
+            if (skipDeviceInfo) {
+                console.log("BLE Device skipping cached generic device information");
+                return;
+            }`,
+    'TTBluetoothDevice command-only generic information skip',
+  );
+
+  return patched;
+}
+
+function patchFastCommandLockConnect(source) {
+  if (source.includes(FAST_COMMAND_LOCK_PATCH_MARKER)) return source;
+  return replaceExactlyOnce(
+    source,
+    '            connected = await this.device.connect();',
+    `            // ${FAST_COMMAND_LOCK_PATCH_MARKER}: pass the existing
+            // command-only policy through to the Bluetooth setup layer.
+            connected = await this.device.connect(this.skipDataRead);`,
+    'TTLock command-only device connect propagation',
+  );
 }
 
 function patchLockStateAdvertisement(source) {
@@ -198,18 +290,30 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   }
   const nobleEntrypointPath = path.join(nobleRoot, 'index.js');
   const nobleWithBindingsPath = path.join(nobleRoot, 'with-bindings.js');
+  const bluetoothDevicePath = path.join(sdkRoot, 'dist', 'device', 'TTBluetoothDevice.js');
+  const nobleDbusBindingsPath = path.join(nobleRoot, 'lib', 'dbus', 'bindings.js');
   fs.writeFileSync(devicePath, patchNobleDevice(fs.readFileSync(devicePath, 'utf8')));
   fs.writeFileSync(scannerPath, patchNobleScanner(fs.readFileSync(scannerPath, 'utf8')));
+  fs.writeFileSync(
+    bluetoothDevicePath,
+    patchFastCommandDeviceConnect(fs.readFileSync(bluetoothDevicePath, 'utf8')),
+  );
   let lockApiSource = fs.readFileSync(lockApiPath, 'utf8');
   lockApiSource = patchLockStateInitialization(lockApiSource);
   lockApiSource = patchLockStateAdvertisement(lockApiSource);
   fs.writeFileSync(lockApiPath, lockApiSource);
-  fs.writeFileSync(lockPath, patchDeadboltStatusQuery(fs.readFileSync(lockPath, 'utf8')));
+  let lockSource = patchDeadboltStatusQuery(fs.readFileSync(lockPath, 'utf8'));
+  lockSource = patchFastCommandLockConnect(lockSource);
+  fs.writeFileSync(lockPath, lockSource);
   fs.writeFileSync(
     nobleEntrypointPath,
     patchNobleEntrypoint(fs.readFileSync(nobleEntrypointPath, 'utf8')),
   );
   fs.writeFileSync(nobleWithBindingsPath, createNobleWithBindingsShim());
+  fs.writeFileSync(
+    nobleDbusBindingsPath,
+    patchNobleDbusStateCache(fs.readFileSync(nobleDbusBindingsPath, 'utf8')),
+  );
   console.log(`Patched ttlock-sdk-js ${EXPECTED_VERSION} and @stoprocent/noble ${noblePackage.version}`);
 }
 
@@ -217,11 +321,14 @@ if (require.main === module) patchInstalledSdk();
 
 module.exports = {
   createNobleWithBindingsShim,
+  patchFastCommandDeviceConnect,
+  patchFastCommandLockConnect,
   patchInstalledSdk,
   patchDeadboltStatusQuery,
   patchLockStateAdvertisement,
   patchLockStateInitialization,
   patchNobleEntrypoint,
   patchNobleDevice,
+  patchNobleDbusStateCache,
   patchNobleScanner,
 };
