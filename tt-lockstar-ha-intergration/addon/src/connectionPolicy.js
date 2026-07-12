@@ -4,6 +4,7 @@ const DEFAULT_FULL_CONNECT_TIMEOUT_MS = 55000;
 const DEFAULT_COMMAND_CONNECT_TIMEOUT_MS = 12000;
 const DEFAULT_HARD_CONNECT_TIMEOUT_MS = DEFAULT_FULL_CONNECT_TIMEOUT_MS;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 1500;
+const RETRY_SAFE_PROPERTY = '_ttLockstarRetrySafe';
 
 class LockConnectTimeoutError extends Error {
   constructor(timeoutMs) {
@@ -38,30 +39,53 @@ function resetConnectionState(lock) {
 }
 
 async function cancelStaleLockConnection(lock, cleanupTimeoutMs = DEFAULT_CLEANUP_TIMEOUT_MS) {
+  if (lock) lock[RETRY_SAFE_PROPERTY] = false;
   const peripheral = resetConnectionState(lock);
-  if (!peripheral) return;
+  if (!peripheral) return false;
 
-  try {
-    if (typeof peripheral.cancelConnect === 'function') peripheral.cancelConnect();
-  } catch (_) {
-    // Noble throws if the connection completed between the state check and cancel.
+  const binding = peripheral?._noble?._bindings;
+  const peripheralId = peripheral.uuid || peripheral.id;
+  const pendingConnectionIsDrained = () => (
+    peripheral.state !== 'connecting'
+    && (!binding || binding._pendingConnectionUuid !== peripheralId)
+  );
+
+  if (!pendingConnectionIsDrained()) {
+    try {
+      if (typeof peripheral.cancelConnect === 'function') peripheral.cancelConnect();
+    } catch (_) {
+      // Noble throws if the connection completed between the state check and cancel.
+    }
   }
-
-  if (peripheral.state !== 'connected' || typeof peripheral.disconnectAsync !== 'function') return;
 
   let timer;
   try {
-    await Promise.race([
-      peripheral.disconnectAsync(),
-      new Promise(resolve => {
-        timer = setTimeout(resolve, cleanupTimeoutMs);
-      }),
-    ]);
+    if (peripheral.state === 'connected' && typeof peripheral.disconnectAsync === 'function') {
+      await Promise.race([
+        peripheral.disconnectAsync(),
+        new Promise(resolve => {
+          timer = setTimeout(resolve, cleanupTimeoutMs);
+        }),
+      ]);
+    } else {
+      const deadline = Date.now() + cleanupTimeoutMs;
+      while (!pendingConnectionIsDrained() && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, Math.min(25, deadline - Date.now())));
+      }
+    }
   } catch (_) {
     // Cleanup is best effort; the scanner will replace the stale peripheral.
   } finally {
     if (timer) clearTimeout(timer);
   }
+
+  const retrySafe = pendingConnectionIsDrained() && peripheral.state !== 'connected';
+  if (lock) lock[RETRY_SAFE_PROPERTY] = retrySafe;
+  return retrySafe;
+}
+
+function isConnectionRetrySafe(lock) {
+  return !lock || lock[RETRY_SAFE_PROPERTY] !== false;
 }
 
 /**
@@ -78,6 +102,7 @@ async function connectWithPolicy(lock, {
   );
   const skipDataRead = !readData;
   let timer;
+  if (lock) lock[RETRY_SAFE_PROPERTY] = true;
 
   try {
     return await Promise.race([
@@ -105,6 +130,8 @@ module.exports = {
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
   DEFAULT_HARD_CONNECT_TIMEOUT_MS,
   LockConnectTimeoutError,
+  RETRY_SAFE_PROPERTY,
   cancelStaleLockConnection,
   connectWithPolicy,
+  isConnectionRetrySafe,
 };

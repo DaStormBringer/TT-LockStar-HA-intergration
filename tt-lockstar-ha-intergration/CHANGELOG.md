@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.19] - 2026-07-12
+
+- Record the supervised alpha.18 unlock failure: the command remained fail-safe and the user confirmed the physical deadbolt stayed locked.
+- Wait for Noble's pending raw-HCI connection slot to drain after cancellation before allowing a retry.
+- Do not issue `cancelConnect` against a connection that has already completed; disconnect that handle normally instead.
+- Suppress the retry when cancellation does not drain, preventing a known-stale second connection attempt.
+- Add elapsed-time logs for connection setup, attempts, command success, and final failure.
+- Add regression coverage for drained and undrained HCI cancellation states.
+
 ## [0.1.0-alpha.18] - 2026-07-12
 
 - Record the alpha.17 supervised timing results: a lock command completed physically in about 18 seconds, while the following unlock timed out and correctly left the door locked.

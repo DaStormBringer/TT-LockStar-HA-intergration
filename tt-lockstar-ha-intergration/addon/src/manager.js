@@ -4,7 +4,7 @@ const EventEmitter = require('events');
 const store = require("./store");
 const { TTLockClient, AudioManage, LockedStatus, LogOperate, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
-const { connectWithPolicy } = require('./connectionPolicy');
+const { connectWithPolicy, isConnectionRetrySafe } = require('./connectionPolicy');
 
 const DEADBOLT_LOCK_RECORD_TYPES = LogOperateCategory.LOCK.filter(
   recordType => recordType !== LogOperate.DOOR_SENSOR_LOCK,
@@ -832,9 +832,11 @@ class Manager extends EventEmitter {
           console.log("[Manager] Stopping monitor before connecting to lock...");
           await this.client.stopMonitor();
         }
+        const connectStartedAt = Date.now();
         console.log(`[Manager] Connecting to ${address} (${readData ? 'full data' : 'command only'})`);
         const res = await connectWithPolicy(lock, { readData });
         if (!res) {
+          console.log(`[Timing] ${address} connection failed after ${Date.now() - connectStartedAt}ms`);
           console.log("Connect to lock failed", lock.getAddress());
           this.interacting = false;
           this.lockMutexes.delete(address);
@@ -845,6 +847,7 @@ class Manager extends EventEmitter {
           }
           return false;
         }
+        console.log(`[Timing] ${address} connection completed after ${Date.now() - connectStartedAt}ms`);
       } catch (error) {
         console.error(error);
         this.interacting = false;
@@ -867,9 +870,14 @@ class Manager extends EventEmitter {
    */
   async _executeWithRetry(lock, operationName, operationFn, maxRetries = 2) {
     const address = lock.getAddress();
+    const operationStartedAt = Date.now();
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`[Manager] ${operationName} attempt ${attempt}/${maxRetries}`);
+      console.log(`[Manager] ${operationName} attempt ${attempt}/${maxRetries} at +${Date.now() - operationStartedAt}ms`);
       if (!(await this._connectLock(lock, false))) {
+        if (!isConnectionRetrySafe(lock)) {
+          console.warn(`[Manager] ${operationName} retry suppressed because the cancelled HCI connection did not drain`);
+          break;
+        }
         if (attempt < maxRetries) await sleep(1500);
         continue;
       }
@@ -877,7 +885,7 @@ class Manager extends EventEmitter {
       try {
         const result = await operationFn();
         if (result !== false || lock.isConnected()) {
-          console.log(`[Manager] ${operationName} command completed with result: ${String(result)}`);
+          console.log(`[Manager] ${operationName} command completed with result: ${String(result)} after ${Date.now() - operationStartedAt}ms`);
           return result;
         }
         console.warn(`Lock disconnected during ${operationName}; retrying (${attempt}/${maxRetries})`);
@@ -890,6 +898,7 @@ class Manager extends EventEmitter {
       await this.disconnectLock(address);
       if (attempt < maxRetries) await sleep(1500);
     }
+    console.log(`[Manager] ${operationName} command failed after ${Date.now() - operationStartedAt}ms`);
     return false;
   }
 
