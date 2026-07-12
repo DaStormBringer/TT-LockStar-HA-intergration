@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.0-alpha.11] - 2026-07-12
+
+- Publish migrated unknown deadbolt state and MQTT discovery as soon as a paired lock is seen, without waiting for a successful BLE connection.
+
 ## [0.1.0-alpha.10] - 2026-07-12
 
 - Correct an upstream SDK classification that treated magnetic door-contact events as deadbolt lock/unlock evidence.

@@ -250,10 +250,12 @@ class HomeAssistant {
   }
 
   async _onLockStateUnknown(lock) {
+    await this.configureLock(lock);
     await this.updateLockState(lock);
   }
 
   async _onDoorStateUpdated(lock) {
+    await this.configureLock(lock);
     await this.updateLockState(lock);
   }
 

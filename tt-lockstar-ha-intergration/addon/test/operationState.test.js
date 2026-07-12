@@ -125,4 +125,14 @@ test('publishes magnetic contact discovery independently from lock state', () =>
   assert.match(haSource, /payload_on: "OPEN"/);
   assert.match(haSource, /payload_off: "CLOSED"/);
   assert.match(haSource, /state: "UNKNOWN"/);
+  assert.match(haSource, /async _onLockStateUnknown\(lock\) \{\s+await this\.configureLock\(lock\);/);
+});
+
+test('publishes unknown deadbolt state before a BLE connection succeeds', () => {
+  const managerSource = fs.readFileSync(path.join(__dirname, '../src/manager.js'), 'utf8');
+
+  assert.match(
+    managerSource,
+    /this\.pairedLocks\.set\(lock\.getAddress\(\), lock\);\s+if \(lock\.lockedStatus === LockedStatus\.UNKNOWN\) \{\s+this\.emit\('lockStateUnknown', lock\);/,
+  );
 });
