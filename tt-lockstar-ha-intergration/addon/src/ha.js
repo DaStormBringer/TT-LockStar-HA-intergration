@@ -322,6 +322,7 @@ class HomeAssistant {
       if (topicArr[2] == "set") {
         switch (command) {
           case "LOCK":
+            console.log(`[MQTT] Received LOCK command for ${address}`);
             try {
               await manager.lockLock(address);
             } finally {
@@ -329,6 +330,7 @@ class HomeAssistant {
             }
             break;
           case "UNLOCK":
+            console.log(`[MQTT] Received UNLOCK command for ${address}`);
             try {
               await manager.unlockLock(address);
             } finally {

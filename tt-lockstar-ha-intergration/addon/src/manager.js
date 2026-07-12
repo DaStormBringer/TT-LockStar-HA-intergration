@@ -4,6 +4,7 @@ const EventEmitter = require('events');
 const store = require("./store");
 const { TTLockClient, AudioManage, LockedStatus, LogOperate, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
+const { connectWithPolicy } = require('./connectionPolicy');
 
 const DEADBOLT_LOCK_RECORD_TYPES = LogOperateCategory.LOCK.filter(
   recordType => recordType !== LogOperate.DOOR_SENSOR_LOCK,
@@ -824,7 +825,8 @@ class Manager extends EventEmitter {
           console.log("[Manager] Stopping monitor before connecting to lock...");
           await this.client.stopMonitor();
         }
-        const res = await lock.connect(!readData);
+        console.log(`[Manager] Connecting to ${address} (${readData ? 'full data' : 'command only'})`);
+        const res = await connectWithPolicy(lock, { readData });
         if (!res) {
           console.log("Connect to lock failed", lock.getAddress());
           this.interacting = false;
@@ -859,7 +861,8 @@ class Manager extends EventEmitter {
   async _executeWithRetry(lock, operationName, operationFn, maxRetries = 3) {
     const address = lock.getAddress();
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      if (!(await this._connectLock(lock))) {
+      console.log(`[Manager] ${operationName} attempt ${attempt}/${maxRetries}`);
+      if (!(await this._connectLock(lock, false))) {
         if (attempt < maxRetries) await sleep(1000);
         continue;
       }
@@ -867,6 +870,7 @@ class Manager extends EventEmitter {
       try {
         const result = await operationFn();
         if (result !== false || lock.isConnected()) {
+          console.log(`[Manager] ${operationName} command completed with result: ${String(result)}`);
           return result;
         }
         console.warn(`Lock disconnected during ${operationName}; retrying (${attempt}/${maxRetries})`);

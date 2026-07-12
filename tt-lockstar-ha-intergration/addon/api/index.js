@@ -85,6 +85,7 @@ module.exports = async (server) => {
 
           case "lock": // lock a lock
             if (msg.data && msg.data.address) {
+              console.log(`[API] Received lock command for ${msg.data.address}`);
               const result = await manager.lockLock(msg.data.address);
               if (!result) {
                 api.sendError("Lock command failed; physical state was not changed", msg);
@@ -95,6 +96,7 @@ module.exports = async (server) => {
 
           case "unlock": // unlock a lock
             if (msg.data && msg.data.address) {
+              console.log(`[API] Received unlock command for ${msg.data.address}`);
               const result = await manager.unlockLock(msg.data.address);
               if (!result) {
                 api.sendError("Unlock command failed; physical state was not changed", msg);

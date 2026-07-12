@@ -1,7 +1,7 @@
 # TT-LockStar-HA-intergration
 
 > [!CAUTION]
-> **VERY EXPERIMENTAL.** This software can operate a physical door lock. It has not been validated on production lock hardware, has no automated test suite, and must not be treated as the only means of entering or securing a property. Test only while physically present with a working mechanical key, keypad, or other manual fallback.
+> **VERY EXPERIMENTAL.** This software can operate a physical door lock. Hardware validation is incomplete, and passing automated tests does not establish safe production operation. It must not be treated as the only means of entering or securing a property. Test only while physically present with a working mechanical key, keypad, or other manual fallback.
 
 This repository merges the newer Home Assistant packaging and interface work from `PiexlPuck/hass-addons` with compatible reliability changes from `RK392/hass-addons` and the RK392 TTLock SDK v0.3.34.
 
@@ -13,7 +13,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.7`
+- Add-on version: `0.1.0-alpha.13`
 - Home Assistant stage: `experimental`
 - Development branch: `codex/merge-rk392`
 - Target: Home Assistant on Linux
@@ -21,7 +21,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
-- Real Bluetooth adapter and lock test: **not yet performed**
+- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, and operation-log reads have worked; alpha.12 lock/unlock testing exposed a BLE full-data connection failure that alpha.13 addresses with command-only connections and a hard timeout
 - Production readiness: **not ready**
 
 The source repository may be stored or edited on Windows, but the deployable add-on image is Linux-native and was built with Docker Desktop's Linux engine.

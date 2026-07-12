@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0-alpha.13] - 2026-07-12
+
+- Use the SDK's command-only connection mode for lock and unlock instead of requiring a full metadata refresh first.
+- Add an outer 55-second connection timeout so a hung SDK/Noble promise cannot hold the per-lock mutex forever.
+- Log API and MQTT command receipt plus each physical-command connection attempt without exposing lock credentials.
+
 ## [0.1.0-alpha.12] - 2026-07-12
 
 - Mark the MQTT lock unavailable when deadbolt position is unknown so Home Assistant cannot retain a misleading prior state.
