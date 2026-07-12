@@ -283,10 +283,15 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   const scannerPath = path.join(sdkRoot, 'dist', 'scanner', 'noble', 'NobleScanner.js');
   const lockApiPath = path.join(sdkRoot, 'dist', 'device', 'TTLockApi.js');
   const lockPath = path.join(sdkRoot, 'dist', 'device', 'TTLock.js');
-  const nobleRoot = path.join(addonRoot, 'node_modules', '@abandonware', 'noble');
+  const rawNobleRoot = path.join(addonRoot, 'node_modules', '@abandonware', 'noble');
+  const rawNoblePackage = JSON.parse(fs.readFileSync(path.join(rawNobleRoot, 'package.json'), 'utf8'));
+  if (rawNoblePackage.name !== '@abandonware/noble' || rawNoblePackage.version !== '1.9.2-26') {
+    throw new Error(`Refusing to use raw-HCI Noble package ${rawNoblePackage.name} ${rawNoblePackage.version}; expected @abandonware/noble 1.9.2-26`);
+  }
+  const nobleRoot = path.join(addonRoot, 'node_modules', '@ttlockstar', 'noble-dbus');
   const noblePackage = JSON.parse(fs.readFileSync(path.join(nobleRoot, 'package.json'), 'utf8'));
   if (noblePackage.name !== '@stoprocent/noble' || noblePackage.version !== '2.5.5') {
-    throw new Error(`Refusing to patch Noble package ${noblePackage.name} ${noblePackage.version}; expected @stoprocent/noble 2.5.5`);
+    throw new Error(`Refusing to patch D-Bus Noble package ${noblePackage.name} ${noblePackage.version}; expected @stoprocent/noble 2.5.5`);
   }
   const nobleEntrypointPath = path.join(nobleRoot, 'index.js');
   const nobleWithBindingsPath = path.join(nobleRoot, 'with-bindings.js');
@@ -314,7 +319,7 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
     nobleDbusBindingsPath,
     patchNobleDbusStateCache(fs.readFileSync(nobleDbusBindingsPath, 'utf8')),
   );
-  console.log(`Patched ttlock-sdk-js ${EXPECTED_VERSION} and @stoprocent/noble ${noblePackage.version}`);
+  console.log(`Patched ttlock-sdk-js ${EXPECTED_VERSION}; raw-HCI Noble ${rawNoblePackage.version}; D-Bus Noble ${noblePackage.version}`);
 }
 
 if (require.main === module) patchInstalledSdk();

@@ -1,4 +1,10 @@
 configuration:
+  bluetooth_adapter:
+    name: "Bluetooth Adapter"
+    description: "The local Bluetooth adapter to use, normally hci0 or hci1."
+  bluetooth_transport:
+    name: "Bluetooth Transport"
+    description: "Use raw_hci for the hardware-validated fallback. The dbus option remains experimental."
   gateway:
     name: "Bluetooth Gateway"
     description: "The Bluetooth gateway mode to use. Select 'none' to use the local Bluetooth adapter."

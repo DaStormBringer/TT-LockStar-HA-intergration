@@ -1,5 +1,9 @@
 'use strict';
 
+const { installNobleTransport } = require('./src/nobleTransport');
+const bluetoothTransport = installNobleTransport();
+console.log(`[Bluetooth] Selected ${bluetoothTransport} transport`);
+
 // Catch errors from noble
 process.on('uncaughtException', (error, promise) => {
   console.error('uncaughtException catch:', promise);

@@ -18,12 +18,21 @@ else
   bashio::log.info "No BLE adapter configured, defaulting to hci0"
 fi
 
-# The SDK imports @abandonware/noble by name. package.json aliases that name to
-# the maintained @stoprocent/noble fork, and this selects its BlueZ D-Bus
-# backend so Bluetooth ownership remains with the Home Assistant host.
-export NOBLE_BINDINGS="dbus"
-export NOBLE_DBUS_ADAPTER_ID="hci${NOBLE_HCI_DEVICE_ID}"
-bashio::log.info "Using @stoprocent/noble BlueZ D-Bus transport on ${NOBLE_DBUS_ADAPTER_ID}"
+if bashio::config.has_value "bluetooth_transport"; then
+  export TTLOCK_BLUETOOTH_TRANSPORT=$(bashio::config "bluetooth_transport")
+else
+  export TTLOCK_BLUETOOTH_TRANSPORT="raw_hci"
+fi
+
+if [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "dbus" ]]; then
+  export NOBLE_BINDINGS="dbus"
+  export NOBLE_DBUS_ADAPTER_ID="hci${NOBLE_HCI_DEVICE_ID}"
+  bashio::log.warning "Using experimental @stoprocent/noble BlueZ D-Bus transport on ${NOBLE_DBUS_ADAPTER_ID}"
+else
+  unset NOBLE_BINDINGS
+  unset NOBLE_DBUS_ADAPTER_ID
+  bashio::log.warning "Using legacy raw-HCI transport on hci${NOBLE_HCI_DEVICE_ID}; this is the hardware-validated fallback"
+fi
 
 if $(bashio::config.true "ignore_crc"); then
   echo "IGNORE CRC TRUE"
