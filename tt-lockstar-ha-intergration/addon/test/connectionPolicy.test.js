@@ -8,8 +8,10 @@ const {
   DEFAULT_CLEANUP_TIMEOUT_MS,
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
   LockConnectTimeoutError,
+  RETRY_SAFE_PROPERTY,
   cancelStaleLockConnection,
   connectWithPolicy,
+  isConnectionRetrySafe,
 } = require('../src/connectionPolicy');
 
 test('uses a short command timeout without shortening metadata refreshes', () => {
@@ -52,7 +54,10 @@ test('rejects a hung SDK connection at the hard timeout', async () => {
   const peripheral = {
     state: 'connected',
     cancelConnect: () => { cancelCalls += 1; },
-    disconnectAsync: async () => { disconnectCalls += 1; },
+    disconnectAsync: async () => {
+      disconnectCalls += 1;
+      peripheral.state = 'disconnected';
+    },
   };
   const nobleDevice = {
     connecting: true,
@@ -82,7 +87,7 @@ test('rejects a hung SDK connection at the hard timeout', async () => {
     LockConnectTimeoutError,
   );
 
-  assert.equal(cancelCalls, 1);
+  assert.equal(cancelCalls, 0);
   assert.equal(disconnectCalls, 1);
   assert.equal(resetBusyCalls, 1);
   assert.equal(lock.connecting, false);
@@ -95,25 +100,56 @@ test('rejects a hung SDK connection at the hard timeout', async () => {
   assert.equal(nobleDevice.connecting, false);
   assert.equal(nobleDevice.connected, false);
   assert.equal(nobleDevice.services.size, 0);
+  assert.equal(lock[RETRY_SAFE_PROPERTY], true);
+  assert.equal(isConnectionRetrySafe(lock), true);
 });
 
-test('cancels a connecting peripheral without trying to disconnect it', async () => {
+test('waits for a cancelled HCI connection to drain before allowing a retry', async () => {
   let cancelCalls = 0;
   let disconnectCalls = 0;
+  const binding = { _pendingConnectionUuid: 'lock-id' };
+  const peripheral = {
+    uuid: 'lock-id',
+    state: 'connecting',
+    _noble: { _bindings: binding },
+    cancelConnect: () => {
+      cancelCalls += 1;
+      setTimeout(() => {
+        peripheral.state = 'error';
+        binding._pendingConnectionUuid = null;
+      }, 5);
+    },
+    disconnectAsync: async () => { disconnectCalls += 1; },
+  };
+  const lock = {
+    device: {
+      device: {
+        peripheral,
+      },
+    },
+  };
+
+  assert.equal(await cancelStaleLockConnection(lock, 50), true);
+
+  assert.equal(cancelCalls, 1);
+  assert.equal(disconnectCalls, 0);
+  assert.equal(isConnectionRetrySafe(lock), true);
+});
+
+test('suppresses a retry when Noble never drains its pending connection', async () => {
   const lock = {
     device: {
       device: {
         peripheral: {
+          uuid: 'lock-id',
           state: 'connecting',
-          cancelConnect: () => { cancelCalls += 1; },
-          disconnectAsync: async () => { disconnectCalls += 1; },
+          _noble: { _bindings: { _pendingConnectionUuid: 'lock-id' } },
+          cancelConnect: () => {},
         },
       },
     },
   };
 
-  await cancelStaleLockConnection(lock, 10);
-
-  assert.equal(cancelCalls, 1);
-  assert.equal(disconnectCalls, 0);
+  assert.equal(await cancelStaleLockConnection(lock, 10), false);
+  assert.equal(isConnectionRetrySafe(lock), false);
 });

@@ -13,7 +13,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.18`
+- Add-on version: `0.1.0-alpha.19`
 - Home Assistant stage: `experimental`
 - Development branch: `codex/faster-lock-commands`
 - Target: Home Assistant on Linux
@@ -96,7 +96,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.18 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.19 \
   ./tt-lockstar-ha-intergration
 ```
 

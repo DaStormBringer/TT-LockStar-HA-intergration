@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.18`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.19`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -48,7 +48,9 @@ The installed alpha.16 image completed a supervised open-door physical cycle. Un
 
 Alpha.17 replaced the inherited 40–55 second command connection waits with a bounded command-only policy. In supervised testing, one lock command completed physically in about 18 seconds. The following unlock exposed a stale optimistic state but did not move the bolt: the first connection reached the 12-second outer timeout, the retry could not connect, and the user confirmed the door remained locked. The timeout bounded the failure, but the expired setup continued in the background and contaminated the retry.
 
-Alpha.18 explicitly cancels and resets that expired connection before retrying. Its command-only path also discovers just TTLock service `1910` and avoids reading every characteristic before subscribing. It still requires supervised timing and sequential-command testing before it can be considered reliable.
+Alpha.18 explicitly cancelled and reset an expired connection before retrying, and limited command discovery to TTLock service `1910`. In supervised testing, an unlock still failed safely: the first attempt reached its 12-second timeout, the retry collided with Noble's still-pending HCI cancellation and reported `unknown peripheral null connected`, and the user confirmed the physical deadbolt remained locked.
+
+Alpha.19 waits for Noble's pending connection slot to drain before retrying. If cancellation does not drain within its bounded cleanup window, it fails closed without issuing the known-stale retry. Elapsed-time logging is included for the next supervised test.
 
 ## Features
 
