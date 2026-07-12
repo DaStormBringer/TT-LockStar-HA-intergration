@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.17`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.18`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -46,7 +46,9 @@ Alpha.16 retains D-Bus as an explicit experimental option but defaults to the le
 
 The installed alpha.16 image completed a supervised open-door physical cycle. Unlock returned `true` on the first manager attempt, the bolt retracted, and Home Assistant changed to `unlocked`. An immediate relock then failed: attempt 1 hit the 55-second hard timeout and attempts 2–3 could not connect, leaving the bolt physically retracted. Restarting only this add-on cleared Noble's stale raw-HCI session; the following lock returned `true` on its first manager attempt, extended the bolt, and changed Home Assistant to `locked`. Raw HCI can operate the lock, but sequential command recovery remains a blocking reliability defect.
 
-Alpha.17 replaces the inherited 40–55 second command connection waits with a short command-only policy: one 6-second raw-HCI attempt per manager attempt, two manager attempts, and a 1.5-second scan window for peripheral rediscovery. Full metadata operations retain their longer timeout. This is intended to turn stale-handle delays into a bounded retry measured in seconds, but still requires supervised timing validation on the real lock.
+Alpha.17 replaced the inherited 40–55 second command connection waits with a bounded command-only policy. In supervised testing, one lock command completed physically in about 18 seconds. The following unlock exposed a stale optimistic state but did not move the bolt: the first connection reached the 12-second outer timeout, the retry could not connect, and the user confirmed the door remained locked. The timeout bounded the failure, but the expired setup continued in the background and contaminated the retry.
+
+Alpha.18 explicitly cancels and resets that expired connection before retrying. Its command-only path also discovers just TTLock service `1910` and avoids reading every characteristic before subscribing. It still requires supervised timing and sequential-command testing before it can be considered reliable.
 
 ## Features
 

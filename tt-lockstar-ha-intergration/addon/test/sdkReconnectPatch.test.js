@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const {
   createNobleWithBindingsShim,
+  patchCommandConnectState,
   patchFastCommandDeviceConnect,
   patchFastCommandLockConnect,
   patchDeadboltStatusQuery,
@@ -14,6 +15,8 @@ const {
   patchNobleDevice,
   patchNobleDbusStateCache,
   patchNobleScanner,
+  patchTargetedCommandDiscovery,
+  patchTargetedNobleDiscovery,
 } = require('../scripts/patch-ttlock-sdk');
 
 test('provides the legacy Noble constructor path used by the disabled websocket scanner', () => {
@@ -100,13 +103,39 @@ test('uses a shorter Bluetooth setup path for command-only connections', () => {
   assert.equal(patchFastCommandLockConnect(patchedLock), patchedLock);
 });
 
+test('limits command setup to the TTLock service and skips characteristic reads', () => {
+  const nobleDeviceSource = `    async discoverServices() {
+            this.peripheral.discoverServices([], (error, discoveredServices) => {
+                services = discoveredServices;
+            });`;
+  const bluetoothDeviceSource = `            await this.device.discoverServices();
+                await service.readCharacteristics();
+                if (service.characteristics.has("fff4")) {`;
+
+  const patchedNobleDevice = patchTargetedNobleDiscovery(nobleDeviceSource);
+  const patchedBluetoothDevice = patchTargetedCommandDiscovery(bluetoothDeviceSource);
+
+  assert.match(patchedNobleDevice, /TT_LOCKSTAR_TARGETED_SERVICE_DISCOVERY/);
+  assert.match(patchedNobleDevice, /discoverServices\(serviceUuids/);
+  assert.match(patchedNobleDevice, /Array\.isArray\(discoveredServices\)/);
+  assert.match(patchedBluetoothDevice, /TT_LOCKSTAR_TARGETED_COMMAND_DISCOVERY/);
+  assert.match(patchedBluetoothDevice, /skipDeviceInfo \? \["1910"\] : \[\]/);
+  assert.match(patchedBluetoothDevice, /service\.discoverCharacteristics\(\)/);
+  assert.doesNotMatch(patchedBluetoothDevice, /service\.readCharacteristics\(\)/);
+  assert.equal(patchTargetedNobleDiscovery(patchedNobleDevice), patchedNobleDevice);
+  assert.equal(patchTargetedCommandDiscovery(patchedBluetoothDevice), patchedBluetoothDevice);
+});
+
 test('fails closed when the expected SDK code is not present', () => {
+  assert.throws(() => patchCommandConnectState('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleEntrypoint('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDevice('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDbusStateCache('unexpected source'), /expected one match/);
   assert.throws(() => patchFastCommandDeviceConnect('unexpected source'), /expected one match/);
   assert.throws(() => patchFastCommandLockConnect('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleScanner('unexpected source'), /expected one match/);
+  assert.throws(() => patchTargetedCommandDiscovery('unexpected source'), /expected one match/);
+  assert.throws(() => patchTargetedNobleDiscovery('unexpected source'), /expected one match/);
 });
 
 test('does not infer locked state from an idle unlock advertisement flag', () => {
@@ -152,4 +181,23 @@ test('starts room deadbolts unknown and restores only confirmed saved state', ()
   assert.match(patched, /LockedStatus\.UNKNOWN/);
   assert.match(patched, /data\.lockedStatus === LockedStatus_1\.LockedStatus\.LOCKED/);
   assert.equal(patchLockStateInitialization(patched), patched);
+});
+
+test('does not infer room deadbolt state during command-only reconnect', () => {
+  const source = `        else {
+            if (this.device.isUnlock) {
+                this.lockedStatus = LockedStatus_1.LockedStatus.UNLOCKED;
+            }
+            else {
+                this.lockedStatus = LockedStatus_1.LockedStatus.LOCKED;
+            }
+        }
+        // are we still connected ? It is possible the lock will disconnect while reading general data`;
+
+  const patched = patchCommandConnectState(source);
+
+  assert.match(patched, /TT_LOCKSTAR_COMMAND_CONNECT_STATE/);
+  assert.match(patched, /else if \(this\.device\.isBicycleLock\)/);
+  assert.doesNotMatch(patched, /else \{\s*this\.lockedStatus = LockedStatus_1\.LockedStatus\.LOCKED/);
+  assert.equal(patchCommandConnectState(patched), patched);
 });

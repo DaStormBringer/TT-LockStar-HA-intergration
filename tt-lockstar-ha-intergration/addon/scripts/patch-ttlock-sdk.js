@@ -8,12 +8,15 @@ const PATCH_MARKER = 'TT_LOCKSTAR_REFRESH_PERIPHERAL';
 const STATE_PATCH_MARKER = 'TT_LOCKSTAR_CONFIRMED_LOCK_STATE';
 const STATUS_QUERY_PATCH_MARKER = 'TT_LOCKSTAR_DEADBOLT_STATUS_QUERY';
 const STATE_INIT_PATCH_MARKER = 'TT_LOCKSTAR_CONFIRMED_STATE_INIT';
+const COMMAND_CONNECT_STATE_PATCH_MARKER = 'TT_LOCKSTAR_COMMAND_CONNECT_STATE';
 const NOBLE_ENTRYPOINT_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_ADAPTER';
 const NOBLE_WITH_BINDINGS_SHIM_MARKER = 'TT_LOCKSTAR_WITH_BINDINGS_SHIM';
 const NOBLE_DBUS_STATE_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_LIVE_STATE';
 const FAST_COMMAND_DEVICE_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_DEVICE_CONNECT';
 const FAST_COMMAND_LOCK_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_LOCK_CONNECT';
 const FAST_COMMAND_TIMEOUT_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_TIMEOUT';
+const TARGETED_NOBLE_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_SERVICE_DISCOVERY';
+const TARGETED_COMMAND_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_COMMAND_DISCOVERY';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
   const count = source.split(expected).length - 1;
@@ -71,6 +74,53 @@ function patchNobleScanner(source) {
     '                nobleDevice.updateFromPeripheral(peripheral);',
     'NobleScanner rediscovery call',
   );
+}
+
+function patchTargetedNobleDiscovery(source) {
+  if (source.includes(TARGETED_NOBLE_DISCOVERY_PATCH_MARKER)) return source;
+
+  let patched = replaceExactlyOnce(
+    source,
+    '    async discoverServices() {',
+    `    // ${TARGETED_NOBLE_DISCOVERY_PATCH_MARKER}: command connections request
+    // only the TTLock service instead of waiting for every advertised service.
+    async discoverServices(serviceUuids = []) {`,
+    'NobleDevice targeted service discovery signature',
+  );
+  patched = replaceExactlyOnce(
+    patched,
+    '            this.peripheral.discoverServices([], (error, discoveredServices) => {\n                services = discoveredServices;\n            });',
+    `            this.peripheral.discoverServices(serviceUuids, (error, discoveredServices) => {
+                if (!error && Array.isArray(discoveredServices)) {
+                    services = discoveredServices;
+                }
+            });`,
+    'NobleDevice targeted service discovery call',
+  );
+  return patched;
+}
+
+function patchTargetedCommandDiscovery(source) {
+  if (source.includes(TARGETED_COMMAND_DISCOVERY_PATCH_MARKER)) return source;
+
+  let patched = replaceExactlyOnce(
+    source,
+    '            await this.device.discoverServices();',
+    `            // ${TARGETED_COMMAND_DISCOVERY_PATCH_MARKER}: the command path
+            // needs only service 1910; metadata refreshes retain full discovery.
+            await this.device.discoverServices(skipDeviceInfo ? ["1910"] : []);`,
+    'TTBluetoothDevice targeted command service discovery',
+  );
+  patched = replaceExactlyOnce(
+    patched,
+    '                await service.readCharacteristics();\n                if (service.characteristics.has("fff4")) {',
+    `                // Discover the command characteristics without reading every
+                // readable value before notification subscription.
+                await service.discoverCharacteristics();
+                if (service.characteristics.has("fff4")) {`,
+    'TTBluetoothDevice command characteristic discovery',
+  );
+  return patched;
 }
 
 function patchNobleEntrypoint(source) {
@@ -280,6 +330,33 @@ function patchLockStateInitialization(source) {
   return patched;
 }
 
+function patchCommandConnectState(source) {
+  if (source.includes(COMMAND_CONNECT_STATE_PATCH_MARKER)) return source;
+  return replaceExactlyOnce(
+    source,
+    `        else {
+            if (this.device.isUnlock) {
+                this.lockedStatus = LockedStatus_1.LockedStatus.UNLOCKED;
+            }
+            else {
+                this.lockedStatus = LockedStatus_1.LockedStatus.LOCKED;
+            }
+        }
+        // are we still connected ? It is possible the lock will disconnect while reading general data`,
+    `        // ${COMMAND_CONNECT_STATE_PATCH_MARKER}: a command-only reconnect is
+        // transport setup, not proof of deadbolt position. Preserve confirmed
+        // room-lock state until the physical command or operation log succeeds.
+        else if (this.device.isUnlock) {
+            this.lockedStatus = LockedStatus_1.LockedStatus.UNLOCKED;
+        }
+        else if (this.device.isBicycleLock) {
+            this.lockedStatus = LockedStatus_1.LockedStatus.LOCKED;
+        }
+        // are we still connected ? It is possible the lock will disconnect while reading general data`,
+    'TTLock command-only connection state handling',
+  );
+}
+
 function patchDeadboltStatusQuery(source) {
   if (source.includes(STATUS_QUERY_PATCH_MARKER)) return source;
   let patched = replaceExactlyOnce(
@@ -324,11 +401,15 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   const nobleWithBindingsPath = path.join(nobleRoot, 'with-bindings.js');
   const bluetoothDevicePath = path.join(sdkRoot, 'dist', 'device', 'TTBluetoothDevice.js');
   const nobleDbusBindingsPath = path.join(nobleRoot, 'lib', 'dbus', 'bindings.js');
-  fs.writeFileSync(devicePath, patchNobleDevice(fs.readFileSync(devicePath, 'utf8')));
+  let nobleDeviceSource = patchNobleDevice(fs.readFileSync(devicePath, 'utf8'));
+  nobleDeviceSource = patchTargetedNobleDiscovery(nobleDeviceSource);
+  fs.writeFileSync(devicePath, nobleDeviceSource);
   fs.writeFileSync(scannerPath, patchNobleScanner(fs.readFileSync(scannerPath, 'utf8')));
   fs.writeFileSync(
     bluetoothDevicePath,
-    patchFastCommandDeviceConnect(fs.readFileSync(bluetoothDevicePath, 'utf8')),
+    patchTargetedCommandDiscovery(
+      patchFastCommandDeviceConnect(fs.readFileSync(bluetoothDevicePath, 'utf8')),
+    ),
   );
   let lockApiSource = fs.readFileSync(lockApiPath, 'utf8');
   lockApiSource = patchLockStateInitialization(lockApiSource);
@@ -336,6 +417,7 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   fs.writeFileSync(lockApiPath, lockApiSource);
   let lockSource = patchDeadboltStatusQuery(fs.readFileSync(lockPath, 'utf8'));
   lockSource = patchFastCommandLockConnect(lockSource);
+  lockSource = patchCommandConnectState(lockSource);
   fs.writeFileSync(lockPath, lockSource);
   fs.writeFileSync(
     nobleEntrypointPath,
@@ -353,6 +435,7 @@ if (require.main === module) patchInstalledSdk();
 
 module.exports = {
   createNobleWithBindingsShim,
+  patchCommandConnectState,
   patchFastCommandDeviceConnect,
   patchFastCommandLockConnect,
   patchInstalledSdk,
@@ -363,4 +446,6 @@ module.exports = {
   patchNobleDevice,
   patchNobleDbusStateCache,
   patchNobleScanner,
+  patchTargetedCommandDiscovery,
+  patchTargetedNobleDiscovery,
 };

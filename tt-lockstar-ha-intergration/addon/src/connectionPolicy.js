@@ -3,11 +3,64 @@
 const DEFAULT_FULL_CONNECT_TIMEOUT_MS = 55000;
 const DEFAULT_COMMAND_CONNECT_TIMEOUT_MS = 12000;
 const DEFAULT_HARD_CONNECT_TIMEOUT_MS = DEFAULT_FULL_CONNECT_TIMEOUT_MS;
+const DEFAULT_CLEANUP_TIMEOUT_MS = 1500;
 
 class LockConnectTimeoutError extends Error {
   constructor(timeoutMs) {
     super(`Lock connection exceeded the ${timeoutMs}ms hard timeout`);
     this.name = 'LockConnectTimeoutError';
+  }
+}
+
+function resetConnectionState(lock) {
+  const bluetoothDevice = lock?.device;
+  const nobleDevice = bluetoothDevice?.device;
+
+  if (lock) {
+    lock.connecting = false;
+    lock.connected = false;
+    lock.skipDataRead = false;
+  }
+  if (bluetoothDevice) {
+    bluetoothDevice.connected = false;
+    bluetoothDevice.disconnectedDuringSetup = true;
+    bluetoothDevice.waitingForResponse = false;
+    bluetoothDevice.responses = [];
+  }
+  if (nobleDevice) {
+    nobleDevice.connecting = false;
+    nobleDevice.connected = false;
+    if (typeof nobleDevice.resetBusy === 'function') nobleDevice.resetBusy();
+    nobleDevice.services = new Map();
+  }
+
+  return nobleDevice?.peripheral;
+}
+
+async function cancelStaleLockConnection(lock, cleanupTimeoutMs = DEFAULT_CLEANUP_TIMEOUT_MS) {
+  const peripheral = resetConnectionState(lock);
+  if (!peripheral) return;
+
+  try {
+    if (typeof peripheral.cancelConnect === 'function') peripheral.cancelConnect();
+  } catch (_) {
+    // Noble throws if the connection completed between the state check and cancel.
+  }
+
+  if (peripheral.state !== 'connected' || typeof peripheral.disconnectAsync !== 'function') return;
+
+  let timer;
+  try {
+    await Promise.race([
+      peripheral.disconnectAsync(),
+      new Promise(resolve => {
+        timer = setTimeout(resolve, cleanupTimeoutMs);
+      }),
+    ]);
+  } catch (_) {
+    // Cleanup is best effort; the scanner will replace the stale peripheral.
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -36,6 +89,11 @@ async function connectWithPolicy(lock, {
         );
       }),
     ]);
+  } catch (error) {
+    if (error instanceof LockConnectTimeoutError) {
+      await cancelStaleLockConnection(lock);
+    }
+    throw error;
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -43,8 +101,10 @@ async function connectWithPolicy(lock, {
 
 module.exports = {
   DEFAULT_COMMAND_CONNECT_TIMEOUT_MS,
+  DEFAULT_CLEANUP_TIMEOUT_MS,
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
   DEFAULT_HARD_CONNECT_TIMEOUT_MS,
   LockConnectTimeoutError,
+  cancelStaleLockConnection,
   connectWithPolicy,
 };

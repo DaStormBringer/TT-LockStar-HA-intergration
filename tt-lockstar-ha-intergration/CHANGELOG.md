@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.18] - 2026-07-12
+
+- Record the alpha.17 supervised timing results: a lock command completed physically in about 18 seconds, while the following unlock timed out and correctly left the door locked.
+- Reset every SDK connection layer after the outer command timeout so a late background connection cannot poison the next retry.
+- Cancel an in-progress raw-HCI connection and disconnect a connection that completes after its deadline.
+- Limit command-only BLE discovery to TTLock service `1910` and discover its characteristics without reading every readable value first.
+- Stop command-only reconnects from publishing an advertisement-inferred deadbolt state before the physical command completes.
+- Add regression coverage for timeout cleanup and targeted service discovery.
+
 ## [0.1.0-alpha.17] - 2026-07-12
 
 - Record a timed alpha.16 unlock that exposed state after 7.5 seconds but required about 55 seconds for physical movement and the definitive command response.
