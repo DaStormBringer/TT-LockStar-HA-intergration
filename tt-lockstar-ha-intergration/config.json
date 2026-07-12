@@ -1,6 +1,6 @@
 {
   "name": "TT LockStar HA (Experimental)",
-  "version": "0.1.0-alpha.15",
+  "version": "0.1.0-alpha.16",
   "slug": "tt-lockstar-ha-intergration",
   "description": "Very experimental local Bluetooth integration of the offline TTLock SDK into Home Assistant",
   "url": "https://github.com/DaStormBringer/TT-LockStar-HA-intergration",
@@ -21,12 +21,14 @@
   ],
   "options": {
     "bluetooth_adapter": "hci0",
+    "bluetooth_transport": "raw_hci",
     "ignore_crc": false,
     "debug_communication": false,
     "debug_mqtt": false
   },
   "schema": {
     "bluetooth_adapter": "match(^hci[0-9]+|[0-9]+$)",
+    "bluetooth_transport": "list(raw_hci|dbus)",
     "ignore_crc": "bool?",
     "debug_communication": "bool?",
     "debug_mqtt": "bool?"

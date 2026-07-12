@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.15`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.16`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -42,6 +42,8 @@ Alpha.14 replaced the former `@abandonware/noble` raw-HCI runtime with `@stoproc
 
 Alpha.15 invalidates stale D-Bus `Connected` and `ServicesResolved` cache entries after a remote disconnect and gives command-only connections a shorter setup path that discovers the TTLock service without rereading cached generic device information. The image must still pass another supervised open-door hardware test before this change can be considered validated.
 
+Alpha.16 retains D-Bus as an explicit experimental option but defaults to the legacy raw-HCI transport that completed the alpha.13 supervised physical test. An upgrade that does not yet contain `bluetooth_transport` also defaults safely to `raw_hci`. This restores a known command path; it does not make unattended lock control production-ready.
+
 ## Features
 
 - Ingress interface for discovery and management
@@ -72,9 +74,7 @@ Alpha.15 invalidates stale D-Bus `Connected` and `ServicesResolved` cache entrie
 
 Pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in Home Assistant backups. Protect the host and its backups, and do not expose the add-on service directly to the internet.
 
-Alpha.15 uses the native Bluetooth dependency chain introduced in alpha.14. Review the current build's audit output rather than relying on an earlier advisory count, and do not apply `npm audit fix --force` without complete rebuild and regression testing.
-
-The validated alpha.15 image reports four moderate advisories and no high or critical advisories with `npm audit --omit=dev --omit=optional`. All four are the same transitive `xml2js` advisory propagated through `dbus-next`, Noble, and the SDK; npm reports no compatible automatic fix. Optional native HCI/socket packages are not installed.
+Alpha.16 intentionally restores the legacy native raw-HCI dependency chain as a selectable fallback. The validated image reports 7 moderate, 7 high, and 2 critical audit findings. The high and critical findings are inherited through the old Noble socket build/install toolchain (`node-gyp`, `node-pre-gyp`, `request`, `tar`, and related packages); there is no non-breaking automatic upgrade for this pinned runtime. The add-on must remain local-only, and `npm audit fix --force` must not be used without a complete rebuild and supervised hardware regression test.
 
 ## Attribution and license
 

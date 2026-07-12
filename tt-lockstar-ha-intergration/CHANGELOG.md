@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.0-alpha.16] - 2026-07-12
+
+- Record that alpha.15 made three fresh BLE connections but each disconnected while `checkUserTime` awaited the lock response.
+- Add a `bluetooth_transport` option with `raw_hci` and `dbus` choices.
+- Default new and upgraded installations without an explicit transport to the raw-HCI path that passed the supervised alpha.13 physical lock/unlock cycle.
+- Retain the maintained Noble D-Bus implementation and alpha.15 patches as an explicit experimental transport.
+- Validate both Noble package versions during the fail-closed SDK patch step and route the SDK's legacy imports to the selected runtime.
+- Build and load the raw-HCI native binding on the current Home Assistant amd64 Node 24 base.
+- Document the increased dependency-audit risk introduced by the legacy fallback.
+
 ## [0.1.0-alpha.15] - 2026-07-12
 
 - Record two failed supervised alpha.14 unlock tests, including an open-door, extended-bolt, awake-keypad test that excluded strike resistance.

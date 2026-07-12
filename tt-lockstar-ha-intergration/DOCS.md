@@ -16,6 +16,7 @@ You can customize the add-on behavior under the **Configuration** tab in the Hom
 
 ```yaml
 bluetooth_adapter: "hci0" # The Bluetooth device ID to use (e.g. hci0, hci1, 0, or 1)
+bluetooth_transport: "raw_hci" # Validated fallback; use dbus only for supervised experiments
 ignore_crc: false # Set to true to ignore bad CRC checksums from older TTLock models
 debug_communication: false # Set to true to log detailed raw BLE traffic for debugging
 debug_mqtt: false # Set to true to log MQTT discovery and state messages
@@ -28,4 +29,6 @@ debug_mqtt: false # Set to true to log MQTT discovery and state messages
 - **Low BLE Signal**: Low BLE signals can lead to failed pairing attempts or missing/corrupted log syncs. Keep your Home Assistant Bluetooth dongle as close to the lock as possible.
 - **Keypad Awake requirement**: The lock is offline and enters deep sleep when idle. It *must* be awake (keypad lit up) when attempting pairing, scans, or initial settings updates.
 - **G2 gateway is separate**: Updating or continuing to use a TTLock G2 gateway is fine, but this local add-on does not communicate through the G2. It requires a Bluetooth adapter directly available to the Home Assistant host.
+- **Transport choice**: `raw_hci` is the default because it completed the supervised alpha.13 lock/unlock test. `dbus` is retained for development but repeatedly disconnected while waiting for command responses in alpha.14 and alpha.15 tests.
+- **Adapter contention**: Raw HCI needs direct adapter ownership. Other software using the same adapter can interfere with commands; dedicate an adapter to this add-on when possible.
 - **Do not pair-reset casually**: Pairing/reset operations can change local lock ownership data. Test with lock/unlock and status reads first, and keep the TTLock app/G2 path available until the local setup is proven stable.
