@@ -21,7 +21,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
-- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have all worked with the raw-HCI transport; alpha.13 completed a supervised physical unlock/lock cycle using command-only connections. Two supervised alpha.14 D-Bus unlock tests failed, and an alpha.15 lock-while-locked test made three fresh connections but disconnected during every `checkUserTime` response wait. Alpha.16 restores raw HCI as the default while retaining D-Bus for experiments.
+- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have all worked with the raw-HCI transport; alpha.13 completed a supervised physical unlock/lock cycle using command-only connections. Two supervised alpha.14 D-Bus unlock tests failed, and an alpha.15 lock-while-locked test made three fresh connections but disconnected during every `checkUserTime` response wait. Alpha.16 restored raw HCI, completed a full-data connection, and returned success for one lock-while-already-locked command on the first manager attempt. That test confirms command acknowledgment, not deadbolt movement.
 - Production readiness: **not ready**
 
 The source repository may be stored or edited on Windows, but the deployable add-on image is Linux-native and was built with Docker Desktop's Linux engine.

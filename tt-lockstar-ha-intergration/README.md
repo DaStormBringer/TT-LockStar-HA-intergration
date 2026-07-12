@@ -44,6 +44,8 @@ Alpha.15 invalidates stale D-Bus `Connected` and `ServicesResolved` cache entrie
 
 Alpha.16 retains D-Bus as an explicit experimental option but defaults to the legacy raw-HCI transport that completed the alpha.13 supervised physical test. An upgrade that does not yet contain `bluetooth_transport` also defaults safely to `raw_hci`. This restores a known command path; it does not make unattended lock control production-ready.
 
+The installed alpha.16 image subsequently completed a raw-HCI full-data connection and returned `true` for one lock command on the first manager attempt. The deadbolt was already locked and did not move, so this result validates command acknowledgment and state publication only. A supervised open-door unlock/lock movement test is still required.
+
 ## Features
 
 - Ingress interface for discovery and management
