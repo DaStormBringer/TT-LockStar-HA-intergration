@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0-alpha.14] - 2026-07-12
+
+- Replace the unmaintained `@abandonware/noble` runtime with an npm alias to maintained `@stoprocent/noble` 2.5.5.
+- Override the pinned TTLock SDK's nested Noble dependency so no legacy raw-HCI copy remains in the image.
+- Use the fork's BlueZ D-Bus backend instead of direct raw-HCI ownership, while preserving the configured `hciN` adapter.
+- Add the D-Bus peer dependency explicitly and validate the installed transport during the existing fail-closed postinstall patch.
+- Skip unused native-HCI dependency install hooks, then explicitly check out and compile the pinned TTLock SDK commit before running the guarded patch step.
+- Compile the legacy SDK against its matching Noble type declarations while keeping the maintained fork as the only runtime implementation.
+- Omit optional native socket/HCI packages that the D-Bus transport does not use.
+- Remove the raw-HCI compiler, Python, libcap, and Bluetooth development packages from the runtime image.
+- Prune build-only TypeScript packages, the temporary SDK checkout, and npm caches from the final image.
+- Restore the legacy `with-bindings` module path required by the SDK's eagerly loaded but disabled websocket scanner.
+- Retain the alpha.13 command-only connection policy and stale-peripheral safeguards for comparative hardware testing.
+
 ## [0.1.0-alpha.13] - 2026-07-12
 
 - Use the SDK's command-only connection mode for lock and unlock instead of requiring a full metadata refresh first.

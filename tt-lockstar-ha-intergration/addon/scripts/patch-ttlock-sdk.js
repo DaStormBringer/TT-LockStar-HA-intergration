@@ -8,6 +8,8 @@ const PATCH_MARKER = 'TT_LOCKSTAR_REFRESH_PERIPHERAL';
 const STATE_PATCH_MARKER = 'TT_LOCKSTAR_CONFIRMED_LOCK_STATE';
 const STATUS_QUERY_PATCH_MARKER = 'TT_LOCKSTAR_DEADBOLT_STATUS_QUERY';
 const STATE_INIT_PATCH_MARKER = 'TT_LOCKSTAR_CONFIRMED_STATE_INIT';
+const NOBLE_ENTRYPOINT_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_ADAPTER';
+const NOBLE_WITH_BINDINGS_SHIM_MARKER = 'TT_LOCKSTAR_WITH_BINDINGS_SHIM';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
   const count = source.split(expected).length - 1;
@@ -65,6 +67,39 @@ function patchNobleScanner(source) {
     '                nobleDevice.updateFromPeripheral(peripheral);',
     'NobleScanner rediscovery call',
   );
+}
+
+function patchNobleEntrypoint(source) {
+  if (source.includes(NOBLE_ENTRYPOINT_PATCH_MARKER)) return source;
+  return replaceExactlyOnce(
+    source,
+    'module.exports = withBindings();',
+    `// ${NOBLE_ENTRYPOINT_PATCH_MARKER}: preserve the configured Home Assistant
+// adapter when the maintained Noble fork uses its BlueZ D-Bus backend.
+const adapterId = process.env.NOBLE_DBUS_ADAPTER_ID;
+const hciDeviceId = process.env.NOBLE_HCI_DEVICE_ID;
+const bindingOptions = {};
+if (adapterId) bindingOptions.adapterId = adapterId;
+if (hciDeviceId !== undefined && hciDeviceId !== '') {
+  bindingOptions.hciDeviceId = Number.parseInt(hciDeviceId, 10);
+}
+module.exports = withBindings('default', bindingOptions);`,
+    '@stoprocent/noble entrypoint',
+  );
+}
+
+function createNobleWithBindingsShim() {
+  return `'use strict';
+
+// ${NOBLE_WITH_BINDINGS_SHIM_MARKER}: the pinned SDK eagerly imports the old
+// Noble constructor path for its disabled websocket scanner. The maintained
+// fork still exposes the compatible Noble class internally.
+const Noble = require('./lib/noble');
+
+module.exports = function (bindings) {
+  return new Noble(bindings);
+};
+`;
 }
 
 function patchLockStateAdvertisement(source) {
@@ -156,6 +191,13 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   const scannerPath = path.join(sdkRoot, 'dist', 'scanner', 'noble', 'NobleScanner.js');
   const lockApiPath = path.join(sdkRoot, 'dist', 'device', 'TTLockApi.js');
   const lockPath = path.join(sdkRoot, 'dist', 'device', 'TTLock.js');
+  const nobleRoot = path.join(addonRoot, 'node_modules', '@abandonware', 'noble');
+  const noblePackage = JSON.parse(fs.readFileSync(path.join(nobleRoot, 'package.json'), 'utf8'));
+  if (noblePackage.name !== '@stoprocent/noble' || noblePackage.version !== '2.5.5') {
+    throw new Error(`Refusing to patch Noble package ${noblePackage.name} ${noblePackage.version}; expected @stoprocent/noble 2.5.5`);
+  }
+  const nobleEntrypointPath = path.join(nobleRoot, 'index.js');
+  const nobleWithBindingsPath = path.join(nobleRoot, 'with-bindings.js');
   fs.writeFileSync(devicePath, patchNobleDevice(fs.readFileSync(devicePath, 'utf8')));
   fs.writeFileSync(scannerPath, patchNobleScanner(fs.readFileSync(scannerPath, 'utf8')));
   let lockApiSource = fs.readFileSync(lockApiPath, 'utf8');
@@ -163,16 +205,23 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   lockApiSource = patchLockStateAdvertisement(lockApiSource);
   fs.writeFileSync(lockApiPath, lockApiSource);
   fs.writeFileSync(lockPath, patchDeadboltStatusQuery(fs.readFileSync(lockPath, 'utf8')));
-  console.log(`Patched ttlock-sdk-js ${EXPECTED_VERSION} Noble reconnect handling`);
+  fs.writeFileSync(
+    nobleEntrypointPath,
+    patchNobleEntrypoint(fs.readFileSync(nobleEntrypointPath, 'utf8')),
+  );
+  fs.writeFileSync(nobleWithBindingsPath, createNobleWithBindingsShim());
+  console.log(`Patched ttlock-sdk-js ${EXPECTED_VERSION} and @stoprocent/noble ${noblePackage.version}`);
 }
 
 if (require.main === module) patchInstalledSdk();
 
 module.exports = {
+  createNobleWithBindingsShim,
   patchInstalledSdk,
   patchDeadboltStatusQuery,
   patchLockStateAdvertisement,
   patchLockStateInitialization,
+  patchNobleEntrypoint,
   patchNobleDevice,
   patchNobleScanner,
 };

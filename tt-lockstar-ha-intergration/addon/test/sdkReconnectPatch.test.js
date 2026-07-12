@@ -4,12 +4,36 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const {
+  createNobleWithBindingsShim,
   patchDeadboltStatusQuery,
   patchLockStateAdvertisement,
   patchLockStateInitialization,
+  patchNobleEntrypoint,
   patchNobleDevice,
   patchNobleScanner,
 } = require('../scripts/patch-ttlock-sdk');
+
+test('provides the legacy Noble constructor path used by the disabled websocket scanner', () => {
+  const shim = createNobleWithBindingsShim();
+
+  assert.match(shim, /TT_LOCKSTAR_WITH_BINDINGS_SHIM/);
+  assert.match(shim, /require\('\.\/lib\/noble'\)/);
+  assert.match(shim, /return new Noble\(bindings\)/);
+});
+
+test('configures the maintained Noble fork for the selected D-Bus adapter', () => {
+  const source = `const withBindings = require('./lib/resolve-bindings');
+
+module.exports = withBindings();
+module.exports.withBindings = withBindings;`;
+
+  const patched = patchNobleEntrypoint(source);
+
+  assert.match(patched, /TT_LOCKSTAR_DBUS_ADAPTER/);
+  assert.match(patched, /NOBLE_DBUS_ADAPTER_ID/);
+  assert.match(patched, /withBindings\('default', bindingOptions\)/);
+  assert.equal(patchNobleEntrypoint(patched), patched);
+});
 
 test('patches the SDK to replace a stale Noble peripheral on rediscovery', () => {
   const deviceSource = `
@@ -31,6 +55,7 @@ test('patches the SDK to replace a stale Noble peripheral on rediscovery', () =>
 });
 
 test('fails closed when the expected SDK code is not present', () => {
+  assert.throws(() => patchNobleEntrypoint('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDevice('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleScanner('unexpected source'), /expected one match/);
 });

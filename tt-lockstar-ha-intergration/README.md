@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.13`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.14`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -26,7 +26,7 @@ Do not reset or unpair an existing production lock unless its current pairing da
 ## Requirements
 
 - Home Assistant OS or supervised Home Assistant on Linux
-- Direct Noble-compatible Bluetooth adapter, normally `hci0` or `hci1`
+- Direct BlueZ-compatible Bluetooth adapter, normally `hci0` or `hci1`
 - MQTT broker for Home Assistant discovery, reporting, and control
 - Manual entry fallback during all testing
 
@@ -37,6 +37,8 @@ The merged `amd64` Alpine image builds successfully. The declared `aarch64` targ
 On 2026-07-12, `0.1.0-alpha.13` completed one supervised physical unlock and lock cycle on an M302 lock through a direct `hci0` adapter. Both commands returned success on their first command-only attempt, the deadbolt movement was confirmed at the door, and Home Assistant changed from `unlocked` to `locked` accordingly. Signal during the test was approximately -83 to -79 dB.
 
 This is a single-device experimental result, not production qualification. Noble still emitted an intermittent `unknown peripheral null connected` warning during the successful lock attempt, so unattended control and auto-unlock remain out of scope.
+
+Alpha.14 replaces the former `@abandonware/noble` raw-HCI runtime with `@stoprocent/noble` 2.5.5 using BlueZ over host D-Bus. This preserves the configured adapter but is a new transport path; it has not inherited alpha.13's hardware-validation result and must be tested again at the open door.
 
 ## Features
 
@@ -68,7 +70,9 @@ This is a single-device experimental result, not production qualification. Noble
 
 Pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in Home Assistant backups. Protect the host and its backups, and do not expose the add-on service directly to the internet.
 
-The native Noble installation chain currently produces seven high-severity `tar` audit findings. There is no non-breaking automatic fix. Do not apply `npm audit fix --force` without complete rebuild and regression testing.
+Alpha.14 changes the native Bluetooth dependency chain. Review the current build's audit output rather than relying on the alpha.13 advisory count, and do not apply `npm audit fix --force` without complete rebuild and regression testing.
+
+The validated alpha.14 image reports four moderate advisories and no high or critical advisories with `npm audit --omit=dev --omit=optional`. All four are the same transitive `xml2js` advisory propagated through `dbus-next`, Noble, and the SDK; npm reports no compatible automatic fix. Optional native HCI/socket packages are not installed.
 
 ## Attribution and license
 

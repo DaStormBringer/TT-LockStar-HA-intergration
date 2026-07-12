@@ -1,6 +1,6 @@
 {
   "name": "tt-lockstar-ha-intergration-frontend",
-  "version": "0.1.0-alpha.13",
+  "version": "0.1.0-alpha.14",
   "author": "Emanuel Posescu <kind3r@gmail.com>",
   "scripts": {
     "serve": "vue-cli-service serve",

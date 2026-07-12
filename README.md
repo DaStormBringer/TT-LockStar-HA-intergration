@@ -13,7 +13,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.13`
+- Add-on version: `0.1.0-alpha.14`
 - Home Assistant stage: `experimental`
 - Development branch: `codex/merge-rk392`
 - Target: Home Assistant on Linux
@@ -21,14 +21,14 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
-- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have all worked; alpha.13 completed a supervised physical unlock/lock cycle using command-only connections
+- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have all worked with the former raw-HCI transport; alpha.13 completed a supervised physical unlock/lock cycle using command-only connections. The alpha.14 BlueZ D-Bus transport still requires supervised hardware validation.
 - Production readiness: **not ready**
 
 The source repository may be stored or edited on Windows, but the deployable add-on image is Linux-native and was built with Docker Desktop's Linux engine.
 
 ## Connection architecture
 
-This add-on communicates directly with a TTLock-compatible lock using a Bluetooth HCI adapter available to the Home Assistant host.
+This add-on communicates directly with a TTLock-compatible lock using the maintained `@stoprocent/noble` library and its BlueZ D-Bus backend. The dependency is installed under the legacy `@abandonware/noble` package name because the pinned TTLock SDK imports that name directly.
 
 - A direct USB or onboard Bluetooth adapter is required.
 - The adapter is selected with `bluetooth_adapter`, normally `hci0` or `hci1`.
@@ -108,7 +108,9 @@ Building an image does not validate Bluetooth behavior. Final testing must occur
 - Lock pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in backups. Protect both.
 - Do not expose the add-on API or Ingress service directly to the internet.
 - Native Bluetooth behavior depends on adapter hardware, driver support, signal quality, D-Bus, and host networking.
-- `npm audit --omit=dev` reports seven high-severity `tar` advisories through Noble's native installation chain. No non-breaking automatic fix is currently offered. Do not use `npm audit fix --force` without a replacement build strategy and complete regression testing.
+- Alpha.14 replaces the former raw-HCI Noble runtime with a BlueZ D-Bus experiment. Treat all Bluetooth behavior as unvalidated until a supervised discovery, unlock, and lock cycle passes on the Home Assistant host.
+- The image skips dependency lifecycle hooks to avoid compiling the unused raw-HCI binding, then explicitly checks out and builds the pinned TTLock SDK commit before running the repository's fail-closed patch step.
+- `npm audit --omit=dev --omit=optional` reports four moderate findings and no high or critical findings. They trace to the `xml2js` version required by `dbus-next`; npm currently reports no compatible automatic fix.
 - Generated frontend assets are committed because the Home Assistant add-on image copies the prebuilt interface.
 
 ## Project lineage
