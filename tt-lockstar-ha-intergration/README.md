@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.7`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.8`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -40,7 +40,7 @@ The merged `amd64` Alpine image builds successfully. The declared `aarch64` targ
 - Lock sound management
 - PIN, IC card, and fingerprint management
 - Cached credentials and operation logs with manual refresh
-- Optional automatic operation-log fetching
+- Optional proactive operation-log fetching can update state after explicit manual lock/unlock events. It increases BLE traffic, and some firmware does not record auto-lock events, so it is disabled by default.
 - Lock clock read and synchronization controls
 - MQTT discovery for lock state, battery, signal strength, and lock time
 - BLE connection serialization and retry handling

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.8] - 2026-07-12
+
+- Treat the newest explicit lock/unlock operation-log record as confirmed state evidence.
+- Persist manual lock/unlock state and publish a single Home Assistant update.
+- Stop comparing operation-log evidence with a stale command cache that could reverse the result.
+- Keep proactive operation-log fetching opt-in because it adds BLE connections and auto-lock events may not be recorded by every lock firmware.
+
 ## [0.1.0-alpha.7] - 2026-07-11
 
 - Initialize idle room deadbolts with unknown state instead of locked.

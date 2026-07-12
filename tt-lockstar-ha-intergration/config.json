@@ -1,6 +1,6 @@
 {
   "name": "TT LockStar HA (Experimental)",
-  "version": "0.1.0-alpha.7",
+  "version": "0.1.0-alpha.8",
   "slug": "tt-lockstar-ha-intergration",
   "description": "Very experimental local Bluetooth integration of the offline TTLock SDK into Home Assistant",
   "url": "https://github.com/DaStormBringer/TT-LockStar-HA-intergration",

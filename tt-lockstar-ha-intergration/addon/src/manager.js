@@ -3,6 +3,7 @@
 const EventEmitter = require('events');
 const store = require("./store");
 const { TTLockClient, AudioManage, LockedStatus, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
+const { OperationState, inferLatestOperationState } = require('./operationState');
 
 // Global console.log wrapper to suppress verbose SDK logs unless TTLOCK_DEBUG_COMM is enabled
 const originalConsoleLog = console.log;
@@ -1052,29 +1053,37 @@ class Manager extends EventEmitter {
   }
 
   async _processOperationLog(lock) {
-    let operations = await lock.getOperationLog();
-    let lastStatus = LockedStatus.UNKNOWN;
-    for (let op of operations) {
-      if (LogOperateCategory.UNLOCK.includes(op.recordType)) {
-        lastStatus = LockedStatus.UNLOCKED;
-        console.log(">>>>>> Lock was unlocked <<<<<<");
-        this.emit("lockUnlock", lock);
-      } else if (LogOperateCategory.LOCK.includes(op.recordType)) {
-        lastStatus = LockedStatus.LOCKED;
-        console.log(">>>>>> Lock was locked <<<<<<");
-        this.emit("lockLock", lock);
-      }
+    const operations = await lock.getOperationLog();
+    const operationState = inferLatestOperationState(
+      operations,
+      LogOperateCategory.LOCK,
+      LogOperateCategory.UNLOCK,
+    );
+
+    if (typeof operationState === 'undefined') {
+      console.log('[Manager] Operation log contained no explicit lock-state event; preserving confirmed state');
+      return LockedStatus.UNKNOWN;
     }
-    const status = await lock.getLockStatus();
-    if (lastStatus != LockedStatus.UNKNOWN && status != lastStatus) {
-      if (status == LockedStatus.LOCKED) {
-        console.log(">>>>>> Lock is now locked <<<<<<");
-        this.emit("lockLock", lock);
-      } else if (status == LockedStatus.UNLOCKED) {
-        console.log(">>>>>> Lock is now unlocked <<<<<<");
-        this.emit("lockUnlock", lock);
-      }
+
+    const confirmedStatus = operationState === OperationState.LOCKED
+      ? LockedStatus.LOCKED
+      : LockedStatus.UNLOCKED;
+
+    // TypeScript marks this field protected, but the compiled SDK stores it as
+    // a normal JavaScript property. Operation-log records are explicit evidence,
+    // unlike the lock's ambiguous idle isUnlock=false advertisement.
+    lock.lockedStatus = confirmedStatus;
+    store.setLockData(this.client.getLockData());
+
+    if (confirmedStatus === LockedStatus.LOCKED) {
+      console.log('>>>>>> Confirmed locked from operation log <<<<<<');
+      this.emit('lockLock', lock);
+    } else {
+      console.log('>>>>>> Confirmed unlocked from operation log <<<<<<');
+      this.emit('lockUnlock', lock);
     }
+
+    return confirmedStatus;
   }
 
   /** Stop scan after 60 seconds */
