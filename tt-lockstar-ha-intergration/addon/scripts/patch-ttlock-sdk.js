@@ -6,6 +6,7 @@ const path = require('path');
 const EXPECTED_VERSION = '0.3.34';
 const PATCH_MARKER = 'TT_LOCKSTAR_REFRESH_PERIPHERAL';
 const STATE_PATCH_MARKER = 'TT_LOCKSTAR_CONFIRMED_LOCK_STATE';
+const STATUS_QUERY_PATCH_MARKER = 'TT_LOCKSTAR_DEADBOLT_STATUS_QUERY';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
   const count = source.split(expected).length - 1;
@@ -88,6 +89,25 @@ function patchLockStateAdvertisement(source) {
   );
 }
 
+function patchDeadboltStatusQuery(source) {
+  if (source.includes(STATUS_QUERY_PATCH_MARKER)) return source;
+  let patched = replaceExactlyOnce(
+    source,
+    '        if (noCache || this.lockedStatus == LockedStatus_1.LockedStatus.UNKNOWN) {',
+    `        // ${STATUS_QUERY_PATCH_MARKER}: searchBycicleStatusCommand is not a
+        // reliable deadbolt-position query. Room locks retain confirmed command state.
+        if ((noCache || this.lockedStatus == LockedStatus_1.LockedStatus.UNKNOWN) && this.device.isBicycleLock) {`,
+    'TTLock getLockStatus query guard',
+  );
+  patched = replaceExactlyOnce(
+    patched,
+    '                if (this.lockedStatus == LockedStatus_1.LockedStatus.UNKNOWN) {',
+    '                if (this.lockedStatus == LockedStatus_1.LockedStatus.UNKNOWN && this.device.isBicycleLock) {',
+    'TTLock onConnected status query guard',
+  );
+  return patched;
+}
+
 function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   const sdkRoot = path.join(addonRoot, 'node_modules', 'ttlock-sdk-js');
   const sdkPackage = JSON.parse(fs.readFileSync(path.join(sdkRoot, 'package.json'), 'utf8'));
@@ -98,9 +118,11 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   const devicePath = path.join(sdkRoot, 'dist', 'scanner', 'noble', 'NobleDevice.js');
   const scannerPath = path.join(sdkRoot, 'dist', 'scanner', 'noble', 'NobleScanner.js');
   const lockApiPath = path.join(sdkRoot, 'dist', 'device', 'TTLockApi.js');
+  const lockPath = path.join(sdkRoot, 'dist', 'device', 'TTLock.js');
   fs.writeFileSync(devicePath, patchNobleDevice(fs.readFileSync(devicePath, 'utf8')));
   fs.writeFileSync(scannerPath, patchNobleScanner(fs.readFileSync(scannerPath, 'utf8')));
   fs.writeFileSync(lockApiPath, patchLockStateAdvertisement(fs.readFileSync(lockApiPath, 'utf8')));
+  fs.writeFileSync(lockPath, patchDeadboltStatusQuery(fs.readFileSync(lockPath, 'utf8')));
   console.log(`Patched ttlock-sdk-js ${EXPECTED_VERSION} Noble reconnect handling`);
 }
 
@@ -108,6 +130,7 @@ if (require.main === module) patchInstalledSdk();
 
 module.exports = {
   patchInstalledSdk,
+  patchDeadboltStatusQuery,
   patchLockStateAdvertisement,
   patchNobleDevice,
   patchNobleScanner,

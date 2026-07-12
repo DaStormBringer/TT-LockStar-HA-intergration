@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const {
+  patchDeadboltStatusQuery,
   patchLockStateAdvertisement,
   patchNobleDevice,
   patchNobleScanner,
@@ -48,4 +49,15 @@ test('does not infer locked state from an idle unlock advertisement flag', () =>
   assert.match(patched, /TT_LOCKSTAR_CONFIRMED_LOCK_STATE/);
   assert.doesNotMatch(patched, /LockedStatus\.LOCKED/);
   assert.equal(patchLockStateAdvertisement(patched), patched);
+});
+
+test('does not use the bicycle status command as a room-deadbolt state query', () => {
+  const source = `        if (noCache || this.lockedStatus == LockedStatus_1.LockedStatus.UNKNOWN) {
+                if (this.lockedStatus == LockedStatus_1.LockedStatus.UNKNOWN) {`;
+
+  const patched = patchDeadboltStatusQuery(source);
+
+  assert.match(patched, /TT_LOCKSTAR_DEADBOLT_STATUS_QUERY/);
+  assert.equal((patched.match(/this\.device\.isBicycleLock/g) || []).length, 2);
+  assert.equal(patchDeadboltStatusQuery(patched), patched);
 });

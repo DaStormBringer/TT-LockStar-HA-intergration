@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0-alpha.6] - 2026-07-11
+
+- Keep room-deadbolt state unknown instead of using the SDK's bicycle-status command as a position sensor.
+- Persist a lock/unlock state only after the physical command returns success.
+- Retain confirmed command state across App restarts.
+
 ## [0.1.0-alpha.5] - 2026-07-11
 
 - Stop treating an idle `isUnlock=false` advertisement as proof that this deadbolt is locked.

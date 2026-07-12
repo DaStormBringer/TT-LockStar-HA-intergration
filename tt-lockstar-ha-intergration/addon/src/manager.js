@@ -266,7 +266,7 @@ class Manager extends EventEmitter {
   async unlockLock(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      return await this._executeWithRetry(lock, "unlock", async () => {
+      const result = await this._executeWithRetry(lock, "unlock", async () => {
         const res = await lock.unlock();
         if (res && typeof lock.getLastOperationTimestamp === "function") {
           const timestamp = lock.getLastOperationTimestamp();
@@ -276,6 +276,8 @@ class Manager extends EventEmitter {
         }
         return res;
       });
+      if (result) store.setLockData(this.client.getLockData());
+      return result;
     }
     return false;
   }
@@ -283,7 +285,7 @@ class Manager extends EventEmitter {
   async lockLock(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      return await this._executeWithRetry(lock, "lock", async () => {
+      const result = await this._executeWithRetry(lock, "lock", async () => {
         const res = await lock.lock();
         if (res && typeof lock.getLastOperationTimestamp === "function") {
           const timestamp = lock.getLastOperationTimestamp();
@@ -293,6 +295,8 @@ class Manager extends EventEmitter {
         }
         return res;
       });
+      if (result) store.setLockData(this.client.getLockData());
+      return result;
     }
     return false;
   }
