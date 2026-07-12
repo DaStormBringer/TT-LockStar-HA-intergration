@@ -6,6 +6,8 @@ const manager = require("../src/manager");
 const store = require('../src/store');
 const Message = require("./Message");
 const WsApi = require("./WsApi");
+const { fetchLockData } = require('../src/ttlockCloudApi');
+const { validateCloudLockData } = require('../src/cloudLockData');
 
 module.exports = async (server) => {
   const wss = new WebSocket.Server({
@@ -269,6 +271,26 @@ module.exports = async (server) => {
                 } catch (error) {
                   api.sendConfigConfirm("Failed to set config");
                 }
+              }
+            }
+            break;
+
+          case "cloudConfig":
+            if (msg.data && msg.data.validate) {
+              try {
+                const lockData = await fetchLockData({
+                  clientId: msg.data.clientId,
+                  accessToken: msg.data.accessToken,
+                  lockId: Number(msg.data.lockId),
+                  expectedMac: msg.data.expectedMac,
+                });
+                const validation = validateCloudLockData(lockData, msg.data.expectedMac);
+                api.sendCloudConfigValidation(validation);
+              } catch (error) {
+                api.sendCloudConfigValidation({
+                  valid: false,
+                  error: error.message,
+                });
               }
             }
             break;

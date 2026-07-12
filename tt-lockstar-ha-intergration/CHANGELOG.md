@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.2] - 2026-07-11
+
+- Added validation-only retrieval of existing lock data from TTLock's official cloud API.
+- Added guarded conversion from legacy TTLock cloud `lockData` to the local JavaScript SDK format.
+- Added strict MAC, base64, AES, key-length, and administrative-value validation.
+- Added sanitized validation responses that never return tokens or pairing secrets.
+- Added local tests for valid conversion, tampering, MAC mismatch, and unsupported signed formats.
+
 ## [0.1.0-alpha.1] - 2026-07-11
 - Merge PiexlPuck's Home Assistant 2026 packaging, local-adapter UI, caching, multi-lock support, and BLE connection mutex with RK392's TTLock SDK v0.3.34 fixes
 - Retry lock/unlock after mid-operation BLE disconnects while releasing the per-lock mutex between attempts

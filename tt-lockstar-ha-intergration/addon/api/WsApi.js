@@ -153,6 +153,13 @@ class WsApi {
     this.ws.send(message.toJSON());
   }
 
+  async sendCloudConfigValidation(validation) {
+    const message = new Message();
+    message.setType("cloudConfig");
+    message.setData({ validation: validation });
+    this.ws.send(message.toJSON());
+  }
+
   async sendOperationLog(address, operations) {
     const message = new Message();
     message.setType("operations");
