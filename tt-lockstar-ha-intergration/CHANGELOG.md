@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.10] - 2026-07-12
+
+- Correct an upstream SDK classification that treated magnetic door-contact events as deadbolt lock/unlock evidence.
+- Invalidate legacy inferred lock state once on upgrade and publish unknown until the newest operation explicitly confirms bolt position.
+- Expose the magnetic contact as a separate Home Assistant MQTT door binary sensor with persisted open/closed state.
+- Label contact records separately from deadbolt records in operation-log data.
+
 ## [0.1.0-alpha.9] - 2026-07-11
 
 - Reconcile confirmed lock state during a forced/manual operation-log refresh as well as proactive event handling.

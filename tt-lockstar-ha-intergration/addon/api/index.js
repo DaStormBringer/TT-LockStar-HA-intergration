@@ -32,6 +32,8 @@ module.exports = async (server) => {
   manager.on("lockConnected", sendLockStatusUpdate);
   manager.on("lockLock", sendLockStatusUpdate);
   manager.on("lockUnlock", sendLockStatusUpdate);
+  manager.on("lockStateUnknown", sendLockStatusUpdate);
+  manager.on("doorStateUpdated", sendLockStatusUpdate);
   manager.on("lockUpdated", sendLockStatusUpdate);
   manager.on("scanStart", sendStatusUpdate);
   manager.on("scanStop", sendStatusUpdate);

@@ -1,6 +1,7 @@
 'use strict';
 
 const { AudioManage } = require('ttlock-sdk-js');
+const store = require('../src/store');
 
 class Lock {
   /** @type {string} MAC address */
@@ -33,6 +34,8 @@ class Lock {
   hasAudio;
   /** @type {boolean} If the lock should fetch operation logs automatically */
   proactiveLogs;
+  /** @type {'OPEN'|'CLOSED'|undefined} Magnetic door-contact state */
+  door;
 
   /**
    * 
@@ -60,6 +63,7 @@ class Lock {
     lock.hasFinger = lockObject.hasFingerprint();
     lock.hasAudio = lockObject.hasLockSound();
     lock.proactiveLogs = lockObject.hasProactiveLogFetching();
+    lock.door = store.getDoorState(lock.address);
 
     return lock;
   }

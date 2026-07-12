@@ -2,8 +2,15 @@
 
 const EventEmitter = require('events');
 const store = require("./store");
-const { TTLockClient, AudioManage, LockedStatus, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
-const { OperationState, inferLatestOperationState } = require('./operationState');
+const { TTLockClient, AudioManage, LockedStatus, LogOperate, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
+const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
+
+const DEADBOLT_LOCK_RECORD_TYPES = LogOperateCategory.LOCK.filter(
+  recordType => recordType !== LogOperate.DOOR_SENSOR_LOCK,
+);
+const DEADBOLT_UNLOCK_RECORD_TYPES = LogOperateCategory.UNLOCK.filter(
+  recordType => recordType !== LogOperate.DOOR_SENSOR_UNLOCK,
+);
 
 // Global console.log wrapper to suppress verbose SDK logs unless TTLOCK_DEBUG_COMM is enabled
 const originalConsoleLog = console.log;
@@ -85,6 +92,8 @@ async function sleep(ms) {
  * - lockConnected - a connetion to a lock was estabilisehed
  * - lockLock - a lock was locked
  * - lockUnlock - a lock was unlocked
+ * - lockStateUnknown - operation evidence cannot confirm the deadbolt position
+ * - doorStateUpdated - the magnetic door contact changed
  * - scanStart - scanning has started
  * - scanStop - scanning has stopped
  */
@@ -132,6 +141,10 @@ class Manager extends EventEmitter {
         }
 
         this.client = new TTLockClient(clientOptions);
+        const migrated = await store.migrateDeadboltStateSchema(2);
+        if (migrated) {
+          console.warn('[Manager] Cleared legacy inferred deadbolt state; door-contact records are now tracked separately');
+        }
         this.updateClientLockDataFromStore();
 
         this.client.on("ready", () => {
@@ -277,7 +290,7 @@ class Manager extends EventEmitter {
         }
         return res;
       });
-      if (result) store.setLockData(this.client.getLockData());
+      if (result) await store.setLockData(this.client.getLockData());
       return result;
     }
     return false;
@@ -296,7 +309,7 @@ class Manager extends EventEmitter {
         }
         return res;
       });
-      if (result) store.setLockData(this.client.getLockData());
+      if (result) await store.setLockData(this.client.getLockData());
       return result;
     }
     return false;
@@ -703,7 +716,7 @@ class Manager extends EventEmitter {
         proactiveLogs: enabled == true
       });
     }
-    store.setLockData(lockData);
+    await store.setLockData(lockData);
     return true;
   }
 
@@ -725,15 +738,20 @@ class Manager extends EventEmitter {
       try {
         const rawOperations = await lock.getOperationLog(true, reload);
         await this._applyOperationState(lock, rawOperations);
+        await this._applyDoorState(lock, rawOperations);
         let operations = JSON.parse(JSON.stringify(rawOperations));
         let validOperations = [];
         // console.log(operations);
         for (let operation of operations) {
           if (operation) {
             operation.recordTypeName = LogOperateNames[operation.recordType];
-            if (LogOperateCategory.LOCK.includes(operation.recordType)) {
+            if (operation.recordType === LogOperate.DOOR_SENSOR_LOCK) {
+              operation.recordTypeCategory = "DOOR_CLOSED";
+            } else if (operation.recordType === LogOperate.DOOR_SENSOR_UNLOCK) {
+              operation.recordTypeCategory = "DOOR_OPEN";
+            } else if (DEADBOLT_LOCK_RECORD_TYPES.includes(operation.recordType)) {
               operation.recordTypeCategory = "LOCK";
-            } else if (LogOperateCategory.UNLOCK.includes(operation.recordType)) {
+            } else if (DEADBOLT_UNLOCK_RECORD_TYPES.includes(operation.recordType)) {
               operation.recordTypeCategory = "UNLOCK";
             } else if (LogOperateCategory.FAILED.includes(operation.recordType)) {
               operation.recordTypeCategory = "FAILED";
@@ -750,7 +768,7 @@ class Manager extends EventEmitter {
             validOperations.push(operation);
           }
         }
-        store.setOperationsCache(address, validOperations);
+        await store.setOperationsCache(address, validOperations);
         return validOperations;
       } catch (error) {
         console.error(error);
@@ -957,7 +975,7 @@ class Manager extends EventEmitter {
   }
 
   async _onUpdatedLockData() {
-    store.setLockData(this.client.getLockData());
+    await store.setLockData(this.client.getLockData());
   }
 
   /**
@@ -1060,18 +1078,26 @@ class Manager extends EventEmitter {
 
   async _processOperationLog(lock) {
     const operations = await lock.getOperationLog();
-    return this._applyOperationState(lock, operations);
+    const lockStatus = await this._applyOperationState(lock, operations);
+    await this._applyDoorState(lock, operations);
+    return lockStatus;
   }
 
   async _applyOperationState(lock, operations) {
     const operationState = inferLatestOperationState(
       operations,
-      LogOperateCategory.LOCK,
-      LogOperateCategory.UNLOCK,
+      DEADBOLT_LOCK_RECORD_TYPES,
+      DEADBOLT_UNLOCK_RECORD_TYPES,
     );
 
     if (typeof operationState === 'undefined') {
-      console.log('[Manager] Operation log contained no explicit lock-state event; preserving confirmed state');
+      const previousStatus = lock.lockedStatus;
+      lock.lockedStatus = LockedStatus.UNKNOWN;
+      await store.setLockData(this.client.getLockData());
+      if (previousStatus !== LockedStatus.UNKNOWN) {
+        console.log('[Manager] Latest operation does not confirm deadbolt position; publishing unknown state');
+        this.emit('lockStateUnknown', lock);
+      }
       return LockedStatus.UNKNOWN;
     }
 
@@ -1084,7 +1110,7 @@ class Manager extends EventEmitter {
     // a normal JavaScript property. Operation-log records are explicit evidence,
     // unlike the lock's ambiguous idle isUnlock=false advertisement.
     lock.lockedStatus = confirmedStatus;
-    store.setLockData(this.client.getLockData());
+    await store.setLockData(this.client.getLockData());
 
     if (previousStatus === confirmedStatus) {
       console.log('[Manager] Operation log confirmed the already-published lock state');
@@ -1100,6 +1126,24 @@ class Manager extends EventEmitter {
     }
 
     return confirmedStatus;
+  }
+
+  async _applyDoorState(lock, operations) {
+    const doorState = inferLatestDoorState(
+      operations,
+      LogOperate.DOOR_SENSOR_LOCK,
+      LogOperate.DOOR_SENSOR_UNLOCK,
+    );
+    if (typeof doorState === 'undefined') return undefined;
+
+    const address = lock.getAddress();
+    const previousState = store.getDoorState(address);
+    await store.setDoorState(address, doorState);
+    if (previousState !== doorState) {
+      console.log(`[Manager] Door contact is now ${doorState.toLowerCase()}`);
+      this.emit('doorStateUpdated', lock, doorState);
+    }
+    return doorState;
   }
 
   /** Stop scan after 60 seconds */

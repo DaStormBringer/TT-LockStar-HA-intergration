@@ -13,6 +13,10 @@ class Store {
     };
     this.credentialsCache = {};
     this.operationsCache = {};
+    this.stateData = {
+      schemaVersion: 1,
+      doorStates: {}
+    };
   }
 
   setDataPath(path) {
@@ -25,7 +29,7 @@ class Store {
 
   setLockData(newData) {
     this.lockData = newData;
-    this.saveData();
+    return this.saveData();
   }
 
   getLockData() {
@@ -98,7 +102,28 @@ class Store {
 
   setOperationsCache(address, ops) {
     this.operationsCache[address] = ops;
-    this.saveData();
+    return this.saveData();
+  }
+
+  getDoorState(address) {
+    return this.stateData.doorStates[address];
+  }
+
+  setDoorState(address, state) {
+    this.stateData.doorStates[address] = state;
+    return this.saveData();
+  }
+
+  async migrateDeadboltStateSchema(targetVersion) {
+    if (this.stateData.schemaVersion >= targetVersion) return false;
+
+    for (const lock of this.lockData) {
+      lock.lockedStatus = -1;
+    }
+    this.operationsCache = {};
+    this.stateData.schemaVersion = targetVersion;
+    await this.saveData();
+    return true;
   }
 
   async loadData() {
@@ -140,6 +165,22 @@ class Store {
     } catch (error) {
       this.operationsCache = {};
     }
+    try {
+      await fs.access(this.settingsPath + "/stateData.json");
+      const stateTxt = (await fs.readFile(this.settingsPath + "/stateData.json")).toString();
+      const stateData = JSON.parse(stateTxt);
+      this.stateData = {
+        schemaVersion: Number.isInteger(stateData.schemaVersion) ? stateData.schemaVersion : 1,
+        doorStates: stateData.doorStates && typeof stateData.doorStates === 'object'
+          ? stateData.doorStates
+          : {}
+      };
+    } catch (error) {
+      this.stateData = {
+        schemaVersion: 1,
+        doorStates: {}
+      };
+    }
 
     return this.lockData;
   }
@@ -165,9 +206,15 @@ class Store {
     } catch (error) {
       console.error(error);
     }
+    try {
+      await fs.writeFile(this.settingsPath + "/stateData.json", Buffer.from(JSON.stringify(this.stateData)));
+    } catch (error) {
+      console.error(error);
+    }
   }
 }
 
 const store = new Store();
 
 module.exports = store;
+module.exports.Store = Store;

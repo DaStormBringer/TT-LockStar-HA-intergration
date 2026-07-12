@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.9`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.10`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -17,6 +17,7 @@ Current version: `0.1.0-alpha.9`. The project uses Semantic Versioning and will 
 - Does not communicate through a TTLock G2 gateway.
 - Does not use Home Assistant Bluetooth proxies.
 - May contend with the TTLock app or G2 gateway when multiple systems contact the lock.
+- Magnetic door-contact state is not deadbolt position. The lock entity stays unknown when the newest operation does not explicitly confirm the bolt.
 - Must not be used as the only means of entering or securing the property.
 - Must not be connected to unattended auto-unlock automations during experimental testing.
 
@@ -41,6 +42,7 @@ The merged `amd64` Alpine image builds successfully. The declared `aarch64` targ
 - PIN, IC card, and fingerprint management
 - Cached credentials and operation logs with manual refresh
 - Optional proactive operation-log fetching can update state after explicit manual lock/unlock events. It increases BLE traffic, and some firmware does not record auto-lock events, so it is disabled by default.
+- Separate MQTT door binary sensor derived from magnetic contact open/closed records.
 - Lock clock read and synchronization controls
 - MQTT discovery for lock state, battery, signal strength, and lock time
 - BLE connection serialization and retry handling

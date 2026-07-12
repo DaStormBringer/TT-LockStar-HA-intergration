@@ -2,6 +2,7 @@
 
 const mqtt = require('async-mqtt');
 const manager = require('./manager');
+const store = require('./store');
 const { LockedStatus } = require('ttlock-sdk-js');
 
 class HomeAssistant {
@@ -28,6 +29,8 @@ class HomeAssistant {
     manager.on("lockConnected", this._onLockConnected.bind(this));
     manager.on("lockUnlock", this._onLockUnlock.bind(this));
     manager.on("lockLock", this._onLockLock.bind(this));
+    manager.on("lockStateUnknown", this._onLockStateUnknown.bind(this));
+    manager.on("doorStateUpdated", this._onDoorStateUpdated.bind(this));
     manager.on("lockBatteryUpdated", this._onLockBatteryUpdated.bind(this));
     manager.on("lockTimeUpdated", this._onLockTimeUpdated.bind(this));
   }
@@ -128,6 +131,20 @@ class HomeAssistant {
       }
       res = await this.client.publish(configRssiTopic, JSON.stringify(rssiPayload), { retain: true });
 
+      // setup magnetic door-contact sensor separately from deadbolt state
+      const configDoorTopic = this.discovery_prefix + "/binary_sensor/" + id + "/door/config";
+      const doorPayload = {
+        unique_id: "ttlock_" + id + "_door",
+        name: name + " Door",
+        device: device,
+        device_class: "door",
+        state_topic: "ttlock/" + id,
+        value_template: "{{ value_json.door }}",
+        payload_on: "OPEN",
+        payload_off: "CLOSED"
+      };
+      res = await this.client.publish(configDoorTopic, JSON.stringify(doorPayload), { retain: true });
+
       // setup lock time sensor
       const configLockTimeTopic = this.discovery_prefix + "/sensor/" + id + "/lock_time/config";
       const lockTimePayload = {
@@ -182,6 +199,8 @@ class HomeAssistant {
       let statePayload = {
         battery: lock.getBattery(),
         rssi: lock.getRssi(),
+        state: "UNKNOWN",
+        door: store.getDoorState(lock.getAddress()) || "UNKNOWN",
       }
       if (this.lockTimes.has(id)) {
         statePayload.lock_time = this.lockTimes.get(id);
@@ -227,6 +246,14 @@ class HomeAssistant {
    * @param {import('ttlock-sdk-js').TTLock} lock 
    */
   async _onLockLock(lock) {
+    await this.updateLockState(lock);
+  }
+
+  async _onLockStateUnknown(lock) {
+    await this.updateLockState(lock);
+  }
+
+  async _onDoorStateUpdated(lock) {
     await this.updateLockState(lock);
   }
 

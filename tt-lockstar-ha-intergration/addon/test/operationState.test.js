@@ -5,12 +5,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
+  DoorState,
   OperationState,
+  inferLatestDoorState,
   inferLatestOperationState,
 } = require('../src/operationState');
+const { Store } = require('../src/store');
 
 const LOCK_TYPES = [10, 11];
 const UNLOCK_TYPES = [20, 21];
+const DOOR_CLOSED_TYPE = 30;
+const DOOR_OPEN_TYPE = 31;
 
 test('selects the newest explicit operation regardless of array order', () => {
   const operations = [
@@ -42,14 +47,39 @@ test('uses record number and then array order when timestamps are unavailable', 
   );
 });
 
-test('ignores unrelated operations and preserves unknown when no state evidence exists', () => {
+test('returns unknown when the newest operation does not confirm deadbolt position', () => {
   assert.equal(
     inferLatestOperationState([
-      { recordType: 99, operateDate: '20260711230000' },
-      null,
+      { recordType: 10, operateDate: '20260711230000' },
+      { recordType: DOOR_CLOSED_TYPE, operateDate: '20260711230500' },
     ], LOCK_TYPES, UNLOCK_TYPES),
     undefined,
   );
+});
+
+test('tracks the newest magnetic contact event separately from deadbolt state', () => {
+  const operations = [
+    { recordType: DOOR_OPEN_TYPE, operateDate: '20260711230000' },
+    { recordType: DOOR_CLOSED_TYPE, operateDate: '20260711230500' },
+    { recordType: 99, operateDate: '20260711231000' },
+  ];
+
+  assert.equal(
+    inferLatestDoorState(operations, DOOR_CLOSED_TYPE, DOOR_OPEN_TYPE),
+    DoorState.CLOSED,
+  );
+});
+
+test('state schema migration invalidates legacy inferred deadbolt status once', async () => {
+  const store = new Store();
+  store.lockData = [{ address: 'AA:BB:CC:DD:EE:FF', lockedStatus: 0 }];
+  store.operationsCache = { 'AA:BB:CC:DD:EE:FF': [{ recordType: 30 }] };
+  store.saveData = async () => {};
+
+  assert.equal(await store.migrateDeadboltStateSchema(2), true);
+  assert.equal(store.lockData[0].lockedStatus, -1);
+  assert.deepEqual(store.operationsCache, {});
+  assert.equal(await store.migrateDeadboltStateSchema(2), false);
 });
 
 test('manual operation-log refresh routes raw records through state reconciliation', () => {
@@ -57,8 +87,16 @@ test('manual operation-log refresh routes raw records through state reconciliati
 
   assert.match(
     managerSource,
-    /const rawOperations = await lock\.getOperationLog\(true, reload\);\s+await this\._applyOperationState\(lock, rawOperations\);/,
+    /const rawOperations = await lock\.getOperationLog\(true, reload\);\s+await this\._applyOperationState\(lock, rawOperations\);\s+await this\._applyDoorState\(lock, rawOperations\);/,
   );
+});
+
+test('door-contact record types are excluded from deadbolt categories', () => {
+  const managerSource = fs.readFileSync(path.join(__dirname, '../src/manager.js'), 'utf8');
+
+  assert.match(managerSource, /recordType !== LogOperate\.DOOR_SENSOR_LOCK/);
+  assert.match(managerSource, /recordType !== LogOperate\.DOOR_SENSOR_UNLOCK/);
+  assert.match(managerSource, /this\.emit\('lockStateUnknown', lock\)/);
 });
 
 test('repeated log confirmation does not emit a duplicate state event', () => {
@@ -77,4 +115,14 @@ test('initial discovery honors the proactive log-fetch setting', () => {
     managerSource,
     /Successful connect attempt to paired lock[\s\S]*?hasProactiveLogFetching\(\)[\s\S]*?if \(proactiveLogsEnabled\) \{\s+await this\._processOperationLog\(lock\);/,
   );
+});
+
+test('publishes magnetic contact discovery independently from lock state', () => {
+  const haSource = fs.readFileSync(path.join(__dirname, '../src/ha.js'), 'utf8');
+
+  assert.match(haSource, /\/binary_sensor\/" \+ id \+ "\/door\/config/);
+  assert.match(haSource, /device_class: "door"/);
+  assert.match(haSource, /payload_on: "OPEN"/);
+  assert.match(haSource, /payload_off: "CLOSED"/);
+  assert.match(haSource, /state: "UNKNOWN"/);
 });
