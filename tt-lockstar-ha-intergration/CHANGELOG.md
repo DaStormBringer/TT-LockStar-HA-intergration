@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0-alpha.4] - 2026-07-11
+
+- Refresh the underlying Noble peripheral object when a known lock is rediscovered.
+- Prevent stale HCI handles from making all connections after the first successful session time out.
+- Apply the reconnect fix only to the pinned `ttlock-sdk-js` 0.3.34 build and fail closed if its compiled structure changes.
+
 ## [0.1.0-alpha.3] - 2026-07-11
 
 - Add an explicitly confirmed cloud-import path after strict validation.

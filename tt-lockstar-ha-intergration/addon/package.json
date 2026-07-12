@@ -1,11 +1,12 @@
 {
   "name": "tt-lockstar-ha-intergration",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "Integration of the offline TTLock sdk into Home Assistant",
   "main": "index.js",
   "scripts": {
     "start": "node ./index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "postinstall": "node ./scripts/patch-ttlock-sdk.js"
   },
   "repository": {
     "type": "git",
