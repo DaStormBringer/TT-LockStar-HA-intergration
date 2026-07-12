@@ -32,6 +32,12 @@ Do not reset or unpair an existing production lock unless its current pairing da
 
 The merged `amd64` Alpine image builds successfully. The declared `aarch64` target still requires a native build and hardware validation.
 
+## Hardware validation
+
+On 2026-07-12, `0.1.0-alpha.13` completed one supervised physical unlock and lock cycle on an M302 lock through a direct `hci0` adapter. Both commands returned success on their first command-only attempt, the deadbolt movement was confirmed at the door, and Home Assistant changed from `unlocked` to `locked` accordingly. Signal during the test was approximately -83 to -79 dB.
+
+This is a single-device experimental result, not production qualification. Noble still emitted an intermittent `unknown peripheral null connected` warning during the successful lock attempt, so unattended control and auto-unlock remain out of scope.
+
 ## Features
 
 - Ingress interface for discovery and management
