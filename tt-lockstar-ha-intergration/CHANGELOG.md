@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.20] - 2026-07-12
+
+- Record the supervised alpha.19 BlueZ D-Bus unlock failure: the adapter connected in under two seconds on the second attempt, but the lock disconnected while `checkUserTime` waited for its response and the physical deadbolt stayed locked.
+- Pace multipart D-Bus write-without-response commands by 20 ms between ATT-sized fragments; raw-HCI behavior is unchanged.
+- Log only fragment number, count, and length on the D-Bus command path so the next supervised test can distinguish a complete write from a notification failure without exposing command payloads.
+- Add fail-closed regression coverage for the transport-specific pacing patch.
+
 ## [0.1.0-alpha.19] - 2026-07-12
 
 - Record the supervised alpha.18 unlock failure: the command remained fail-safe and the user confirmed the physical deadbolt stayed locked.

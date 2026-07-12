@@ -17,6 +17,7 @@ const FAST_COMMAND_LOCK_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_LOCK_CONNECT';
 const FAST_COMMAND_TIMEOUT_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_TIMEOUT';
 const TARGETED_NOBLE_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_SERVICE_DISCOVERY';
 const TARGETED_COMMAND_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_COMMAND_DISCOVERY';
+const DBUS_COMMAND_PACING_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_COMMAND_PACING';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
   const count = source.split(expected).length - 1;
@@ -121,6 +122,38 @@ function patchTargetedCommandDiscovery(source) {
     'TTBluetoothDevice command characteristic discovery',
   );
   return patched;
+}
+
+function patchDbusCommandPacing(source) {
+  if (source.includes(DBUS_COMMAND_PACING_PATCH_MARKER)) return source;
+
+  return replaceExactlyOnce(
+    source,
+    `            const written = await characteristic.write(data.subarray(index, index + Math.min(MTU, remaining)), true);
+            if (!written) {
+                return false;
+            }
+            // await sleep(10);
+            index += MTU;`,
+    `            const fragment = data.subarray(index, index + Math.min(MTU, remaining));
+            const written = await characteristic.write(fragment, true);
+            if (!written) {
+                return false;
+            }
+            // ${DBUS_COMMAND_PACING_PATCH_MARKER}: WriteValue returns as soon as
+            // BlueZ accepts a write-without-response fragment. Pace only multi-part
+            // D-Bus commands so the lock can consume one ATT packet before the next.
+            if (process.env.TTLOCK_BLUETOOTH_TRANSPORT === "dbus") {
+                const fragmentNumber = Math.floor(index / MTU) + 1;
+                const fragmentCount = Math.ceil(data.length / MTU);
+                console.log(\`[Bluetooth][D-Bus] command fragment \${fragmentNumber}/\${fragmentCount} accepted (\${fragment.length} bytes)\`);
+                if (index + MTU < data.length) {
+                    await (0, timingUtil_1.sleep)(20);
+                }
+            }
+            index += MTU;`,
+    'TTBluetoothDevice D-Bus command pacing',
+  );
 }
 
 function patchNobleEntrypoint(source) {
@@ -407,8 +440,10 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   fs.writeFileSync(scannerPath, patchNobleScanner(fs.readFileSync(scannerPath, 'utf8')));
   fs.writeFileSync(
     bluetoothDevicePath,
-    patchTargetedCommandDiscovery(
-      patchFastCommandDeviceConnect(fs.readFileSync(bluetoothDevicePath, 'utf8')),
+    patchDbusCommandPacing(
+      patchTargetedCommandDiscovery(
+        patchFastCommandDeviceConnect(fs.readFileSync(bluetoothDevicePath, 'utf8')),
+      ),
     ),
   );
   let lockApiSource = fs.readFileSync(lockApiPath, 'utf8');
@@ -440,6 +475,7 @@ module.exports = {
   patchFastCommandLockConnect,
   patchInstalledSdk,
   patchDeadboltStatusQuery,
+  patchDbusCommandPacing,
   patchLockStateAdvertisement,
   patchLockStateInitialization,
   patchNobleEntrypoint,

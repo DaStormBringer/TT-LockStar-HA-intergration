@@ -6,6 +6,7 @@ const test = require('node:test');
 const {
   createNobleWithBindingsShim,
   patchCommandConnectState,
+  patchDbusCommandPacing,
   patchFastCommandDeviceConnect,
   patchFastCommandLockConnect,
   patchDeadboltStatusQuery,
@@ -126,8 +127,26 @@ test('limits command setup to the TTLock service and skips characteristic reads'
   assert.equal(patchTargetedCommandDiscovery(patchedBluetoothDevice), patchedBluetoothDevice);
 });
 
+test('paces multipart write-without-response commands only on D-Bus', () => {
+  const source = `            const written = await characteristic.write(data.subarray(index, index + Math.min(MTU, remaining)), true);
+            if (!written) {
+                return false;
+            }
+            // await sleep(10);
+            index += MTU;`;
+
+  const patched = patchDbusCommandPacing(source);
+
+  assert.match(patched, /TT_LOCKSTAR_DBUS_COMMAND_PACING/);
+  assert.match(patched, /TTLOCK_BLUETOOTH_TRANSPORT === "dbus"/);
+  assert.match(patched, /timingUtil_1\.sleep\)\(20\)/);
+  assert.match(patched, /fragmentNumber.*fragmentCount/);
+  assert.equal(patchDbusCommandPacing(patched), patched);
+});
+
 test('fails closed when the expected SDK code is not present', () => {
   assert.throws(() => patchCommandConnectState('unexpected source'), /expected one match/);
+  assert.throws(() => patchDbusCommandPacing('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleEntrypoint('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDevice('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDbusStateCache('unexpected source'), /expected one match/);
