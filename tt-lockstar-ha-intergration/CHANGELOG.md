@@ -9,7 +9,7 @@
 - Validate both Noble package versions during the fail-closed SDK patch step and route the SDK's legacy imports to the selected runtime.
 - Build and load the raw-HCI native binding on the current Home Assistant amd64 Node 24 base.
 - Document the increased dependency-audit risk introduced by the legacy fallback.
-- Complete a live raw-HCI full-data connection and receive a successful response for one lock-while-already-locked command on the first manager attempt; no physical deadbolt movement occurred.
+- Complete a supervised open-door physical unlock/lock cycle. Unlock succeeded on the first attempt, but the immediate relock exhausted all retries with a stale raw-HCI session. Restarting only the add-on cleared the session, after which lock succeeded on the first attempt. Physical bolt movement and Home Assistant state agreed throughout.
 
 ## [0.1.0-alpha.15] - 2026-07-12
 
