@@ -19,4 +19,4 @@ RUN cd /app && npm i
 
 ENTRYPOINT ["/app/start.sh"]
 
-LABEL io.hass.version="VERSION" io.hass.type="addon" io.hass.arch="aarch64|amd64"
+LABEL io.hass.version="VERSION" io.hass.type="app" io.hass.arch="aarch64|amd64"

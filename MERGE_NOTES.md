@@ -1,4 +1,4 @@
-# TTLock local merge notes
+# TT-LockStar-HA-intergration merge notes
 
 ## Sources
 
@@ -7,7 +7,9 @@
 - SDK: `RK392/ttlock-sdk-js` pinned to commit `42043c41f8f4c88234d2b70ab6a067a610679ffb` (`v0.3.34`)
 - Original project: `kind3r/hass-addons` and `kind3r/ttlock-sdk-js`
 
-The repository keeps `origin` pointed at PiexlPuck and an `rk392` remote pointed at RK392. The working branch is `codex/merge-rk392`.
+The repository keeps `origin` pointed at `DaStormBringer/TT-LockStar-HA-intergration`, preserves PiexlPuck as `upstream-piexlpuck`, and keeps `rk392` and `rk392-sdk` remotes for the imported reliability work. The working branch is `codex/merge-rk392`.
+
+The public project name is `TT-LockStar-HA-intergration`, and the Home Assistant add-on slug is `tt-lockstar-ha-intergration`. This slug differs from the upstream `ttlock-hass-integration` identity and does not automatically migrate upstream add-on storage.
 
 ## Merge policy
 
@@ -36,9 +38,9 @@ The TTLock G2 gateway and its firmware remain independent. This add-on does not 
 ## Current validation scope
 
 - Backend JavaScript syntax checks pass with Node.js 24.
-- The Vue production frontend builds successfully. Its warnings are existing Vue 2/Vuetify 2 deprecations, console lint warnings, and bundle-size warnings; there are no compile errors.
+- The Vue production frontend built successfully before the final package rename. A full rebuild after the naming-only package change timed out in the legacy Vue 2 Windows toolchain, so the generated Ingress title was updated directly. The final Docker image was inspected and contains the renamed package, version, and title. A clean Linux CI rebuild remains desirable before a release candidate.
 - The pinned SDK resolves as version 0.3.34 and its required lock-time/proactive-log methods are present in the pinned source.
-- The complete `amd64` Home Assistant/Alpine image builds successfully in Docker Desktop as `ttlock-local-merged:0.7.0`. The image contains compiled SDK v0.3.34 output and the expected lock-time/proactive-log methods.
+- The complete `amd64` Home Assistant/Alpine image builds successfully in Docker Desktop as `tt-lockstar-ha-intergration:0.1.0-alpha.1`. The image contains compiled SDK v0.3.34 output and the expected lock-time/proactive-log methods.
 - Loading Noble without host Bluetooth access reaches the expected `EAFNOSUPPORT` socket error. Hardware behavior still requires Home Assistant host networking, D-Bus, and a real Bluetooth adapter; Docker Desktop is not a substitute for that test.
 - `npm audit --omit=dev` reports seven high-severity `tar` advisories through Noble's native installer chain (`bluetooth-hci-socket` -> `node-gyp`/`node-pre-gyp`). No non-breaking upstream fix is offered. Do not apply `npm audit fix --force`; these dependencies should be replaced or isolated in a future SDK/toolchain update.
 - Hardware validation requires an explicit, supervised test with a direct Bluetooth adapter near the lock. No install, pairing, reset, lock, or unlock operation was performed as part of this merge.

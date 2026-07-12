@@ -1,11 +1,13 @@
 # Changelog
 
-## [0.7.0] - 2026-07-11
+## [0.1.0-alpha.1] - 2026-07-11
 - Merge PiexlPuck's Home Assistant 2026 packaging, local-adapter UI, caching, multi-lock support, and BLE connection mutex with RK392's TTLock SDK v0.3.34 fixes
 - Retry lock/unlock after mid-operation BLE disconnects while releasing the per-lock mutex between attempts
 - Add lock-time sensor plus manual read/sync buttons through MQTT discovery
 - Add optional proactive operation-log fetching and raise the auto-lock setting limit to 300 seconds
 - Keep the TTLock G2 gateway path independent; this add-on communicates through a direct Bluetooth adapter attached to Home Assistant
+
+The entries below are retained upstream development history from before the TT-LockStar project identity and version reset.
 
 ## [0.6.3] - 2026-06-18
 - Implement lock connection mutex to serialize BLE commands and prevent concurrent connection collisions (e.g. setting auto-lock while fetching logs)

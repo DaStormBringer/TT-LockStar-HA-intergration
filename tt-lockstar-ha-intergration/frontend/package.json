@@ -1,6 +1,6 @@
 {
-  "name": "ttlock-hass-integration-frontend",
-  "version": "0.2.0",
+  "name": "tt-lockstar-ha-intergration-frontend",
+  "version": "0.1.0-alpha.1",
   "author": "Emanuel Posescu <kind3r@gmail.com>",
   "scripts": {
     "serve": "vue-cli-service serve",
@@ -35,12 +35,12 @@
     "vuetify-loader": "^1.3.0"
   },
   "bugs": {
-    "url": "https://github.com/kind3r/hass-addons/issues"
+    "url": "https://github.com/DaStormBringer/TT-LockStar-HA-intergration/issues"
   },
-  "homepage": "https://github.com/kind3r/hass-addons/tree/master/ttlock-hass-integration",
+  "homepage": "https://github.com/DaStormBringer/TT-LockStar-HA-intergration/tree/main/tt-lockstar-ha-intergration",
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kind3r/ttlock-hass-integration.git"
+    "url": "git+https://github.com/DaStormBringer/TT-LockStar-HA-intergration.git"
   }
 }

@@ -1,6 +1,6 @@
 {
-  "name": "ttlock-hass-integration",
-  "version": "0.7.0",
+  "name": "tt-lockstar-ha-intergration",
+  "version": "0.1.0-alpha.1",
   "description": "Integration of the offline TTLock sdk into Home Assistant",
   "main": "index.js",
   "scripts": {
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kind3r/ttlock-hass-integration.git"
+    "url": "git+https://github.com/DaStormBringer/TT-LockStar-HA-intergration.git"
   },
   "keywords": [
     "ttlock",
@@ -24,9 +24,9 @@
   "author": "Emanuel Posescu <kind3r@gmail.com>",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/kind3r/hass-addons/issues"
+    "url": "https://github.com/DaStormBringer/TT-LockStar-HA-intergration/issues"
   },
-  "homepage": "https://github.com/kind3r/hass-addons/tree/master/ttlock-hass-integration",
+  "homepage": "https://github.com/DaStormBringer/TT-LockStar-HA-intergration/tree/main/tt-lockstar-ha-intergration",
   "dependencies": {
     "@abandonware/noble": "^1.9.2-26",
     "async-mqtt": "^2.6.3",

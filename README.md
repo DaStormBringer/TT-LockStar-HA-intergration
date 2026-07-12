@@ -1,19 +1,24 @@
-# TTLock Home Assistant Add-on
+# TT-LockStar-HA-intergration
 
 > [!CAUTION]
 > **VERY EXPERIMENTAL.** This software can operate a physical door lock. It has not been validated on production lock hardware, has no automated test suite, and must not be treated as the only means of entering or securing a property. Test only while physically present with a working mechanical key, keypad, or other manual fallback.
 
 This repository merges the newer Home Assistant packaging and interface work from `PiexlPuck/hass-addons` with compatible reliability changes from `RK392/hass-addons` and the RK392 TTLock SDK v0.3.34.
 
+The public project and repository name is `TT-LockStar-HA-intergration`. Its Home Assistant add-on slug is `tt-lockstar-ha-intergration`.
+
+The slug was changed before the first release. Home Assistant treats a changed slug as a different add-on, so installations made under the former `ttlock-hass-integration` slug will not automatically inherit add-on data or configuration.
+
 Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or operating a lock.
 
 ## Current status
 
-- Add-on version: `0.7.0`
+- Add-on version: `0.1.0-alpha.1`
+- Home Assistant stage: `experimental`
 - Development branch: `codex/merge-rk392`
 - Target: Home Assistant on Linux
 - Verified image: Home Assistant Alpine Linux, `amd64`
-- Frontend production build: successful
+- Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
 - Real Bluetooth adapter and lock test: **not yet performed**
@@ -56,6 +61,19 @@ Do not reset, unpair, or initialize an existing production lock until its curren
 
 Only the `amd64` image has been built and inspected during this merge. The manifest also declares `aarch64`, but that architecture still needs a native image build and hardware test.
 
+## Versioning
+
+This project uses Semantic Versioning:
+
+- `0.1.0-alpha.N`: active development; incomplete and potentially breaking
+- `0.1.0-beta.N`: feature-complete candidate undergoing supervised hardware testing
+- `0.1.0-rc.N`: release candidate with no known blocking defects
+- `0.1.0`: first experimental release considered usable for careful manual operation
+- `0.MINOR.PATCH`: pre-1.0 development; minor releases may still contain breaking changes
+- `1.0.0`: reserved for a documented, migration-aware release with sustained hardware validation
+
+Git release tags use the matching `vVERSION` form, beginning with `v0.1.0-alpha.1`.
+
 ## Conservative first-test procedure
 
 1. Keep the existing TTLock app/G2 path and a manual entry method available.
@@ -77,8 +95,8 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag ttlock-local-merged:0.7.0 \
-  ./ttlock-hass-integration
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.1 \
+  ./tt-lockstar-ha-intergration
 ```
 
 Building an image does not validate Bluetooth behavior. Final testing must occur on the Home Assistant Linux host with its real adapter and lock.
@@ -104,4 +122,4 @@ The upstream histories are preserved in the merge commit. See [MERGE_NOTES.md](M
 
 ## License
 
-This project remains licensed under the GNU General Public License v3.0. The original license and author attribution are retained in [LICENSE.md](ttlock-hass-integration/LICENSE.md). Modified versions and redistributed builds must continue to comply with the GPL.
+This project remains licensed under the GNU General Public License v3.0. The original license and author attribution are retained in [LICENSE.md](tt-lockstar-ha-intergration/LICENSE.md). Modified versions and redistributed builds must continue to comply with the GPL.
