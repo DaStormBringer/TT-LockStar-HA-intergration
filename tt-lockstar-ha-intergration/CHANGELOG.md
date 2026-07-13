@@ -8,6 +8,7 @@
 - Correct the live alpha.56 restart test where features were available in memory but reverted to unsupported after the add-on restarted.
 - Keep all actuator, setting, credential, and fingerprint behavior unchanged; this release only repairs capability metadata persistence.
 - Pass 104 JavaScript tests and 8 ESPHome bridge tests in the built Linux/amd64 image; verify add-on 0.1.0-alpha.57, SDK 0.3.34, and 42 exposed commands.
+- Pass live M302 restart validation: restore 21 feature identifiers, all summarized capability flags, auto-lock `0`, and sound on while disconnected and without a second Bluetooth read.
 
 ## [0.1.0-alpha.56] - 2026-07-13
 
