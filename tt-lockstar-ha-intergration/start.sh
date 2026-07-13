@@ -24,7 +24,11 @@ else
   export TTLOCK_BLUETOOTH_TRANSPORT="raw_hci"
 fi
 
-if [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "dbus" ]]; then
+if [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "bluez" ]]; then
+  unset NOBLE_BINDINGS
+  export NOBLE_DBUS_ADAPTER_ID="hci${NOBLE_HCI_DEVICE_ID}"
+  bashio::log.warning "Using experimental native BlueZ D-Bus transport on ${NOBLE_DBUS_ADAPTER_ID}; Noble is bypassed"
+elif [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "dbus" ]]; then
   export NOBLE_BINDINGS="dbus"
   export NOBLE_DBUS_ADAPTER_ID="hci${NOBLE_HCI_DEVICE_ID}"
   bashio::log.warning "Using experimental @stoprocent/noble BlueZ D-Bus transport on ${NOBLE_DBUS_ADAPTER_ID}"

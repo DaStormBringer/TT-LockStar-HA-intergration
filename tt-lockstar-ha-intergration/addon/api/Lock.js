@@ -1,6 +1,6 @@
 'use strict';
 
-const { AudioManage } = require('ttlock-sdk-js');
+const { AudioManage } = require('ttlock-sdk-js/dist/constant/AudioManage');
 const store = require('../src/store');
 
 class Lock {

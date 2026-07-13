@@ -13,7 +13,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.25`
+- Add-on version: `0.1.0-alpha.26`
 - Home Assistant stage: `experimental`
 - Development branch: `codex/faster-lock-commands`
 - Target: Home Assistant on Linux
@@ -28,11 +28,11 @@ The source repository may be stored or edited on Windows, but the deployable add
 
 ## Connection architecture
 
-This add-on communicates directly with a TTLock-compatible lock using a selectable Noble transport. `raw_hci` is the default because it passed the supervised physical test; `dbus` uses maintained `@stoprocent/noble` 2.5.5 and remains experimental. A small runtime resolver preserves the pinned SDK's legacy `@abandonware/noble` imports.
+This add-on communicates directly with a TTLock-compatible lock using a selectable Bluetooth transport. `raw_hci` is the default because it passed the supervised physical test; `dbus` uses maintained `@stoprocent/noble` 2.5.5; and `bluez` bypasses Noble with a native BlueZ D-Bus adapter. Both D-Bus paths remain experimental.
 
 - A direct USB or onboard Bluetooth adapter is required.
 - The adapter is selected with `bluetooth_adapter`, normally `hci0` or `hci1`.
-- The transport is selected with `bluetooth_transport`: `raw_hci` by default or experimental `dbus`.
+- The transport is selected with `bluetooth_transport`: `raw_hci` by default, Noble-backed `dbus`, or native `bluez`.
 - Home Assistant Bluetooth proxies are not a transport for this Noble-based add-on.
 - A TTLock G2 gateway is not a transport for this add-on and remains a separate TTLock app/cloud path.
 - Simultaneous access from the G2, TTLock app, and this add-on may cause Bluetooth contention or failed operations.
@@ -96,7 +96,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.25 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.26 \
   ./tt-lockstar-ha-intergration
 ```
 
@@ -109,7 +109,7 @@ Building an image does not validate Bluetooth behavior. Final testing must occur
 - Lock pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in backups. Protect both.
 - Do not expose the add-on API or Ingress service directly to the internet.
 - Native Bluetooth behavior depends on adapter hardware, driver support, signal quality, D-Bus, and host networking.
-- Alpha.25 keeps raw HCI as the default. D-Bus remains selectable for supervised experiments, waits up to 15 seconds for a keypad wake advertisement, accepts the SDK's live update event as that wake signal, and can refresh only the target's unpaired stale BlueZ cache before waiting for live rediscovery.
+- Alpha.26 keeps raw HCI as the default and adds a native `bluez` option that implements the SDK scanner/device boundary directly over BlueZ D-Bus without Noble. The older Noble-backed `dbus` path remains available only for comparison during supervised experiments.
 - The image installs both transports, compiles the raw-HCI native binding, explicitly builds the pinned TTLock SDK commit, and then runs the fail-closed patch step.
 - `npm audit --omit=dev` reports 7 moderate, 7 high, and 2 critical findings. Most high/critical findings are inherited through the legacy raw-HCI build/install dependency chain. There is no safe automatic upgrade for the pinned runtime; keep the add-on local-only and do not use `npm audit fix --force`.
 - Generated frontend assets are committed because the Home Assistant add-on image copies the prebuilt interface.

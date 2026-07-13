@@ -3,7 +3,7 @@
 const mqtt = require('async-mqtt');
 const manager = require('./manager');
 const store = require('./store');
-const { LockedStatus } = require('ttlock-sdk-js');
+const { LockedStatus } = require('ttlock-sdk-js/dist/constant/LockedStatus');
 
 class HomeAssistant {
   /**

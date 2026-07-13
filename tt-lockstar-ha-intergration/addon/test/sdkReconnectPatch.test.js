@@ -10,6 +10,7 @@ const {
   patchFastCommandDeviceConnect,
   patchFastCommandLockConnect,
   patchDeadboltStatusQuery,
+  patchDirectCommandEnvelopeImport,
   patchLockStateAdvertisement,
   patchLockStateInitialization,
   patchNobleEntrypoint,
@@ -21,6 +22,20 @@ const {
   patchTargetedCommandDiscovery,
   patchTargetedNobleDiscovery,
 } = require('../scripts/patch-ttlock-sdk');
+
+test('keeps the native BlueZ protocol path from eagerly loading Noble', () => {
+  const source = `const __1 = require("..");
+const requestEnvelope = __1.CommandEnvelope.createFromLockType(lockType, key);
+const responseEnvelope = __1.CommandEnvelope.createFromRawData(data);`;
+
+  const patched = patchDirectCommandEnvelopeImport(source);
+
+  assert.match(patched, /TT_LOCKSTAR_DIRECT_COMMAND_ENVELOPE/);
+  assert.match(patched, /require\("\.\.\/api\/CommandEnvelope"\)/);
+  assert.doesNotMatch(patched, /require\("\.\."\)/);
+  assert.doesNotMatch(patched, /__1\.CommandEnvelope/);
+  assert.equal(patchDirectCommandEnvelopeImport(patched), patched);
+});
 
 test('provides the legacy Noble constructor path used by the disabled websocket scanner', () => {
   const shim = createNobleWithBindingsShim();
@@ -183,7 +198,7 @@ test('paces multipart write-without-response commands only on D-Bus', () => {
   const patched = patchDbusCommandPacing(source);
 
   assert.match(patched, /TT_LOCKSTAR_DBUS_COMMAND_PACING/);
-  assert.match(patched, /TTLOCK_BLUETOOTH_TRANSPORT === "dbus"/);
+  assert.match(patched, /\["dbus", "bluez"\]\.includes/);
   assert.match(patched, /timingUtil_1\.sleep\)\(20\)/);
   assert.match(patched, /fragmentNumber.*fragmentCount/);
   assert.equal(patchDbusCommandPacing(patched), patched);

@@ -2,7 +2,11 @@
 
 const EventEmitter = require('events');
 const store = require("./store");
-const { TTLockClient, AudioManage, LockedStatus, LogOperate, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
+const { AudioManage, LockedStatus, LogOperate, LogOperateCategory, LogOperateNames } = require('ttlock-sdk-js/dist/constant');
+const { BluezTTLockClient } = require('./bluezTransport');
+const TTLockClient = process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'bluez'
+  ? null
+  : require('ttlock-sdk-js/dist/TTLockClient').TTLockClient;
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
 const {
   connectWithPolicy,
@@ -19,6 +23,10 @@ const DEADBOLT_LOCK_RECORD_TYPES = LogOperateCategory.LOCK.filter(
 const DEADBOLT_UNLOCK_RECORD_TYPES = LogOperateCategory.UNLOCK.filter(
   recordType => recordType !== LogOperate.DOOR_SENSOR_UNLOCK,
 );
+
+function usesBluezDbus() {
+  return ['dbus', 'bluez'].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT);
+}
 
 // Global console.log wrapper to suppress verbose SDK logs unless TTLOCK_DEBUG_COMM is enabled
 const originalConsoleLog = console.log;
@@ -156,7 +164,10 @@ class Manager extends EventEmitter {
           }
         }
 
-        this.client = new TTLockClient(clientOptions);
+        const Client = process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'bluez'
+          ? BluezTTLockClient
+          : TTLockClient;
+        this.client = new Client(clientOptions);
         const migrated = await store.migrateDeadboltStateSchema(2);
         if (migrated) {
           console.warn('[Manager] Cleared legacy inferred deadbolt state; door-contact records are now tracked separately');
@@ -171,6 +182,10 @@ class Manager extends EventEmitter {
           this.client.startMonitor();
         });
         this.client.on("foundLock", this._onFoundLock.bind(this));
+        this.client.on('lockAdvertisement', lock => markLockAndStoredAdvertisement(
+          lock,
+          this.pairedLocks.get(lock.getAddress()),
+        ));
         this.client.on("scanStart", this._onScanStarted.bind(this));
         this.client.on("scanStop", this._onScanStopped.bind(this));
         this.client.on("monitorStart", () => console.log("Monitor started"));
@@ -836,7 +851,7 @@ class Manager extends EventEmitter {
       let wasMonitoring = false;
       try {
         wasMonitoring = this.client.isMonitoring();
-        if (wasMonitoring && process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'dbus') {
+        if (wasMonitoring && usesBluezDbus()) {
           let advertisementAge = await waitForFreshLockAdvertisement(lock, {
             timeoutMs: DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
           });
@@ -855,7 +870,7 @@ class Manager extends EventEmitter {
         if (wasMonitoring) {
           console.log("[Manager] Stopping monitor before connecting to lock...");
           await this.client.stopMonitor();
-          if (process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'dbus') {
+          if (usesBluezDbus()) {
             // Let BlueZ finish this client's StopDiscovery transition before
             // Device1.Connect. Intel adapters can otherwise abort locally.
             await sleep(250);

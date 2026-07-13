@@ -5,7 +5,7 @@ const manager = require("../src/manager");
 const store = require("../src/store");
 const Lock = require("./Lock");
 const Message = require("./Message");
-const { sleep } = require("ttlock-sdk-js");
+const { sleep } = require('ttlock-sdk-js/dist/util/timingUtil');
 
 class WsApi {
   /**

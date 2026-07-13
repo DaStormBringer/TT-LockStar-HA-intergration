@@ -111,6 +111,23 @@ test('refreshes the target through the selected Noble D-Bus binding', async () =
   assert.equal(await refreshDbusDeviceCache({}), false);
 });
 
+test('refreshes the target through the native BlueZ device adapter', async () => {
+  let refreshCalls = 0;
+  const lock = {
+    device: {
+      device: {
+        refreshDevice: async () => {
+          refreshCalls += 1;
+          return true;
+        },
+      },
+    },
+  };
+
+  assert.equal(await refreshDbusDeviceCache(lock), true);
+  assert.equal(refreshCalls, 1);
+});
+
 test('uses a command-only SDK connection when metadata is not required', async () => {
   const calls = [];
   const lock = {
