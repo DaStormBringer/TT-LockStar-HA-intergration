@@ -4,21 +4,73 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const {
+  DEFAULT_ADVERTISEMENT_FRESHNESS_MS,
+  DEFAULT_ADVERTISEMENT_WAIT_MS,
   DEFAULT_COMMAND_CONNECT_TIMEOUT_MS,
   DEFAULT_CLEANUP_TIMEOUT_MS,
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
   LockConnectTimeoutError,
+  LAST_ADVERTISEMENT_PROPERTY,
   RETRY_SAFE_PROPERTY,
   cancelStaleLockConnection,
   connectWithPolicy,
+  getLockAdvertisementAge,
   isConnectionRetrySafe,
+  markLockAdvertisement,
+  waitForFreshLockAdvertisement,
 } = require('../src/connectionPolicy');
 
 test('uses a short command timeout without shortening metadata refreshes', () => {
+  assert.equal(DEFAULT_ADVERTISEMENT_FRESHNESS_MS, 1000);
+  assert.equal(DEFAULT_ADVERTISEMENT_WAIT_MS, 6000);
   assert.equal(DEFAULT_COMMAND_CONNECT_TIMEOUT_MS, 12000);
   assert.equal(DEFAULT_CLEANUP_TIMEOUT_MS, 1500);
   assert.equal(DEFAULT_FULL_CONNECT_TIMEOUT_MS, 55000);
   assert.ok(DEFAULT_COMMAND_CONNECT_TIMEOUT_MS < DEFAULT_FULL_CONNECT_TIMEOUT_MS);
+});
+
+test('marks and measures the newest lock advertisement', () => {
+  const lock = {};
+  markLockAdvertisement(lock, 1000);
+
+  assert.equal(lock[LAST_ADVERTISEMENT_PROPERTY], 1000);
+  assert.equal(getLockAdvertisementAge(lock, 1250), 250);
+  assert.equal(getLockAdvertisementAge({}, 1250), Infinity);
+});
+
+test('waits for a fresh advertisement before connecting', async () => {
+  const lock = {};
+  let nowMs = 1000;
+  let sleeps = 0;
+  const age = await waitForFreshLockAdvertisement(lock, {
+    freshnessMs: 100,
+    timeoutMs: 500,
+    pollMs: 50,
+    now: () => nowMs,
+    sleep: async ms => {
+      sleeps += 1;
+      nowMs += ms;
+      if (sleeps === 2) markLockAdvertisement(lock, nowMs);
+    },
+  });
+
+  assert.equal(age, 0);
+  assert.equal(sleeps, 2);
+});
+
+test('fails closed when no fresh advertisement arrives', async () => {
+  const lock = {};
+  let nowMs = 1000;
+  const result = await waitForFreshLockAdvertisement(lock, {
+    freshnessMs: 100,
+    timeoutMs: 120,
+    pollMs: 50,
+    now: () => nowMs,
+    sleep: async ms => { nowMs += ms; },
+  });
+
+  assert.equal(result, false);
+  assert.equal(nowMs, 1120);
 });
 
 test('uses a command-only SDK connection when metadata is not required', async () => {

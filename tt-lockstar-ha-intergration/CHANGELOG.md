@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.21] - 2026-07-12
+
+- Record that alpha.20 failed safely before writing a command: both BlueZ connection attempts returned `org.bluez.Error.Failed: le-connection-abort-by-local`, and the user confirmed the deadbolt stayed locked.
+- Wait up to six seconds for an advertisement no older than one second before a D-Bus connection attempt.
+- Allow 250 ms for this App's BlueZ discovery stop to settle before calling `Device1.Connect`; raw-HCI timing is unchanged.
+- Keep actual `Peripheral connect error` messages visible when communication debug is disabled.
+- Add deterministic coverage for fresh-advertisement success and fail-closed timeout behavior.
+
 ## [0.1.0-alpha.20] - 2026-07-12
 
 - Record the supervised alpha.19 BlueZ D-Bus unlock failure: the adapter connected in under two seconds on the second attempt, but the lock disconnected while `checkUserTime` waited for its response and the physical deadbolt stayed locked.

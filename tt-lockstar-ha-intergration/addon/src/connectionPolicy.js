@@ -4,6 +4,9 @@ const DEFAULT_FULL_CONNECT_TIMEOUT_MS = 55000;
 const DEFAULT_COMMAND_CONNECT_TIMEOUT_MS = 12000;
 const DEFAULT_HARD_CONNECT_TIMEOUT_MS = DEFAULT_FULL_CONNECT_TIMEOUT_MS;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 1500;
+const DEFAULT_ADVERTISEMENT_FRESHNESS_MS = 1000;
+const DEFAULT_ADVERTISEMENT_WAIT_MS = 6000;
+const LAST_ADVERTISEMENT_PROPERTY = '_ttLockstarLastAdvertisementAt';
 const RETRY_SAFE_PROPERTY = '_ttLockstarRetrySafe';
 
 class LockConnectTimeoutError extends Error {
@@ -88,6 +91,33 @@ function isConnectionRetrySafe(lock) {
   return !lock || lock[RETRY_SAFE_PROPERTY] !== false;
 }
 
+function markLockAdvertisement(lock, timestamp = Date.now()) {
+  if (lock) lock[LAST_ADVERTISEMENT_PROPERTY] = timestamp;
+}
+
+function getLockAdvertisementAge(lock, now = Date.now()) {
+  const timestamp = Number(lock?.[LAST_ADVERTISEMENT_PROPERTY]);
+  if (!Number.isFinite(timestamp)) return Infinity;
+  return Math.max(0, now - timestamp);
+}
+
+async function waitForFreshLockAdvertisement(lock, {
+  freshnessMs = DEFAULT_ADVERTISEMENT_FRESHNESS_MS,
+  timeoutMs = DEFAULT_ADVERTISEMENT_WAIT_MS,
+  pollMs = 50,
+  now = Date.now,
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
+} = {}) {
+  const deadline = now() + timeoutMs;
+  while (true) {
+    const age = getLockAdvertisementAge(lock, now());
+    if (age <= freshnessMs) return age;
+    const remaining = deadline - now();
+    if (remaining <= 0) return false;
+    await sleep(Math.min(pollMs, remaining));
+  }
+}
+
 /**
  * Connect to a lock with an outer timeout that cannot be bypassed by a hung
  * Noble/SDK promise. Command operations set readData=false so the SDK skips
@@ -125,13 +155,19 @@ async function connectWithPolicy(lock, {
 }
 
 module.exports = {
+  DEFAULT_ADVERTISEMENT_FRESHNESS_MS,
+  DEFAULT_ADVERTISEMENT_WAIT_MS,
   DEFAULT_COMMAND_CONNECT_TIMEOUT_MS,
   DEFAULT_CLEANUP_TIMEOUT_MS,
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
   DEFAULT_HARD_CONNECT_TIMEOUT_MS,
   LockConnectTimeoutError,
+  LAST_ADVERTISEMENT_PROPERTY,
   RETRY_SAFE_PROPERTY,
   cancelStaleLockConnection,
   connectWithPolicy,
+  getLockAdvertisementAge,
   isConnectionRetrySafe,
+  markLockAdvertisement,
+  waitForFreshLockAdvertisement,
 };

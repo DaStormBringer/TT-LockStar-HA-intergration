@@ -4,7 +4,12 @@ const EventEmitter = require('events');
 const store = require("./store");
 const { TTLockClient, AudioManage, LockedStatus, LogOperate, LogOperateCategory, LogOperateNames } = require("ttlock-sdk-js");
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
-const { connectWithPolicy, isConnectionRetrySafe } = require('./connectionPolicy');
+const {
+  connectWithPolicy,
+  isConnectionRetrySafe,
+  markLockAdvertisement,
+  waitForFreshLockAdvertisement,
+} = require('./connectionPolicy');
 
 const DEADBOLT_LOCK_RECORD_TYPES = LogOperateCategory.LOCK.filter(
   recordType => recordType !== LogOperate.DOOR_SENSOR_LOCK,
@@ -23,7 +28,8 @@ console.log = function (...args) {
       firstArg.startsWith('BLE Device') ||
       firstArg.startsWith('Sending command:') ||
       firstArg.startsWith('Received response:') ||
-      firstArg.startsWith('Peripheral connect') ||
+      firstArg === 'Peripheral connect start' ||
+      firstArg === 'Peripheral connect triggered' ||
       firstArg.startsWith('Device emiting') ||
       firstArg.startsWith('Lock waiting') ||
       firstArg.startsWith('Connect allready') ||
@@ -828,9 +834,21 @@ class Manager extends EventEmitter {
       let wasMonitoring = false;
       try {
         wasMonitoring = this.client.isMonitoring();
+        if (wasMonitoring && process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'dbus') {
+          const advertisementAge = await waitForFreshLockAdvertisement(lock);
+          if (advertisementAge === false) {
+            throw new Error(`[Bluetooth][D-Bus] No fresh advertisement from ${address} within 6000ms`);
+          }
+          console.log(`[Bluetooth][D-Bus] Connecting from an advertisement ${advertisementAge}ms old`);
+        }
         if (wasMonitoring) {
           console.log("[Manager] Stopping monitor before connecting to lock...");
           await this.client.stopMonitor();
+          if (process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'dbus') {
+            // Let BlueZ finish this client's StopDiscovery transition before
+            // Device1.Connect. Intel adapters can otherwise abort locally.
+            await sleep(250);
+          }
         }
         const connectStartedAt = Date.now();
         console.log(`[Manager] Connecting to ${address} (${readData ? 'full data' : 'command only'})`);
@@ -938,6 +956,9 @@ class Manager extends EventEmitter {
    * @param {import('ttlock-sdk-js').TTLock} lock 
    */
   async _onFoundLock(lock) {
+    markLockAdvertisement(lock);
+    const storedLock = this.pairedLocks.get(lock.getAddress());
+    if (storedLock && storedLock !== lock) markLockAdvertisement(storedLock);
     let listChanged = false;
     if (lock.isPaired()) {
       // check if lock is known
