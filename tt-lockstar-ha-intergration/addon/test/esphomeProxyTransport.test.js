@@ -88,11 +88,11 @@ test('connects, enumerates GATT, writes, and surfaces notifications through the 
   assert.equal(await characteristic.writeFragments([
     Buffer.alloc(20, 1),
     Buffer.alloc(7, 2),
-  ], true, 20), true);
+  ], true, 100), true);
   assert.equal(calls.at(-1).action, 'write_fragments');
   assert.deepEqual(calls.at(-1).payload.data, ['01'.repeat(20), '02'.repeat(7)]);
   assert.equal(calls.at(-1).payload.response, false);
-  assert.equal(calls.at(-1).payload.delay_ms, 20);
+  assert.equal(calls.at(-1).payload.delay_ms, 100);
 
   let notification;
   characteristic.on('dataRead', data => { notification = data; });
