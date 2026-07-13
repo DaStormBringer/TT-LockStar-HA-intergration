@@ -2,6 +2,7 @@
 
 const DEFAULT_FULL_CONNECT_TIMEOUT_MS = 55000;
 const DEFAULT_COMMAND_CONNECT_TIMEOUT_MS = 12000;
+const ESPHOME_PROXY_COMMAND_CONNECT_TIMEOUT_MS = 45000;
 const DEFAULT_HARD_CONNECT_TIMEOUT_MS = DEFAULT_FULL_CONNECT_TIMEOUT_MS;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 1500;
 const DEFAULT_ADVERTISEMENT_FRESHNESS_MS = 10000;
@@ -111,6 +112,14 @@ function getCommandRetryDelayMs(
     : DEFAULT_COMMAND_RETRY_DELAY_MS;
 }
 
+function getCommandConnectTimeoutMs(
+  transport = process.env.TTLOCK_BLUETOOTH_TRANSPORT,
+) {
+  return transport === 'esphome_proxy'
+    ? ESPHOME_PROXY_COMMAND_CONNECT_TIMEOUT_MS
+    : DEFAULT_COMMAND_CONNECT_TIMEOUT_MS;
+}
+
 function markLockAdvertisement(lock, timestamp = Date.now()) {
   if (lock) lock[LAST_ADVERTISEMENT_PROPERTY] = timestamp;
 }
@@ -165,7 +174,7 @@ async function connectWithPolicy(lock, {
   timeoutMs,
 } = {}) {
   const effectiveTimeoutMs = timeoutMs ?? (
-    readData ? DEFAULT_FULL_CONNECT_TIMEOUT_MS : DEFAULT_COMMAND_CONNECT_TIMEOUT_MS
+    readData ? DEFAULT_FULL_CONNECT_TIMEOUT_MS : getCommandConnectTimeoutMs()
   );
   const skipDataRead = !readData;
   let timer;
@@ -199,6 +208,7 @@ module.exports = {
   DEFAULT_COMMAND_RETRY_DELAY_MS,
   NATIVE_BLUEZ_COMMAND_RETRY_DELAY_MS,
   DEFAULT_COMMAND_CONNECT_TIMEOUT_MS,
+  ESPHOME_PROXY_COMMAND_CONNECT_TIMEOUT_MS,
   DEFAULT_CLEANUP_TIMEOUT_MS,
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
   DEFAULT_HARD_CONNECT_TIMEOUT_MS,
@@ -209,6 +219,7 @@ module.exports = {
   connectWithPolicy,
   getLockAdvertisementAge,
   getCommandRetryDelayMs,
+  getCommandConnectTimeoutMs,
   isConnectionRetrySafe,
   markLockAndStoredAdvertisement,
   markLockAdvertisement,

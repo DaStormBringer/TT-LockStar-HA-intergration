@@ -10,6 +10,7 @@ const {
   DEFAULT_COMMAND_RETRY_DELAY_MS,
   NATIVE_BLUEZ_COMMAND_RETRY_DELAY_MS,
   DEFAULT_COMMAND_CONNECT_TIMEOUT_MS,
+  ESPHOME_PROXY_COMMAND_CONNECT_TIMEOUT_MS,
   DEFAULT_CLEANUP_TIMEOUT_MS,
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
   LockConnectTimeoutError,
@@ -19,6 +20,7 @@ const {
   connectWithPolicy,
   getLockAdvertisementAge,
   getCommandRetryDelayMs,
+  getCommandConnectTimeoutMs,
   isConnectionRetrySafe,
   markLockAndStoredAdvertisement,
   markLockAdvertisement,
@@ -34,9 +36,14 @@ test('uses a short command timeout without shortening metadata refreshes', () =>
   assert.equal(DEFAULT_COMMAND_RETRY_DELAY_MS, 1500);
   assert.equal(NATIVE_BLUEZ_COMMAND_RETRY_DELAY_MS, 100);
   assert.equal(DEFAULT_COMMAND_CONNECT_TIMEOUT_MS, 12000);
+  assert.equal(ESPHOME_PROXY_COMMAND_CONNECT_TIMEOUT_MS, 45000);
   assert.equal(DEFAULT_CLEANUP_TIMEOUT_MS, 1500);
   assert.equal(DEFAULT_FULL_CONNECT_TIMEOUT_MS, 55000);
   assert.ok(DEFAULT_COMMAND_CONNECT_TIMEOUT_MS < DEFAULT_FULL_CONNECT_TIMEOUT_MS);
+  assert.equal(getCommandConnectTimeoutMs('esphome_proxy'), 45000);
+  assert.equal(getCommandConnectTimeoutMs('bluez'), 12000);
+  assert.equal(getCommandConnectTimeoutMs('dbus'), 12000);
+  assert.equal(getCommandConnectTimeoutMs('raw_hci'), 12000);
 });
 
 test('keeps native BlueZ discovery active and retries promptly', () => {

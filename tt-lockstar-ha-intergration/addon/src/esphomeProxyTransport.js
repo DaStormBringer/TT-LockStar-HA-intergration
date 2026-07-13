@@ -329,12 +329,15 @@ class EsphomeProxyDevice extends EventEmitter {
     this.connecting = true;
     this.state = 'connecting';
     try {
-      const timeout = Math.max(Number(timeoutSeconds) || 10, 10);
+      const timeout = Math.max(Number(timeoutSeconds) || 18, 18);
       const result = await this.scanner.bridge.request('connect', {
         address: this.address,
         address_type: this.addressType,
         timeout,
-      }, (timeout + 5) * 1000);
+      // aioesphomeapi may spend up to another connection timeout draining a
+      // failed ESPHome GATT attempt. Keep the bridge request alive until that
+      // cleanup completes so a bounded retry cannot overlap the stale attempt.
+      }, ((timeout * 2) + 5) * 1000);
       this.connected = true;
       this.connecting = false;
       this.state = 'connected';

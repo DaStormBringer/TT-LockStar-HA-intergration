@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.35] - 2026-07-12
+
+- Give only the ESPHome proxy command path a 45-second outer connection window; raw HCI, Noble D-Bus, and native BlueZ retain their existing 12-second command cutoff.
+- Raise the ESPHome GATT connection request floor from 10 to 18 seconds.
+- Keep the Node-to-Python bridge request alive through aioesphomeapi's bounded failed-connect cleanup so a second attempt cannot overlap a stale proxy connection.
+- Record the first supervised ESPHome proxy unlock attempt: both bounded connection attempts timed out before any unlock payload was written, and the user confirmed the deadbolt remained locked.
+
 ## [0.1.0-alpha.34] - 2026-07-12
 
 - Subscribe to ESPHome raw advertisement batches when the proxy advertises that feature, with a parsed-message fallback for older proxies.
