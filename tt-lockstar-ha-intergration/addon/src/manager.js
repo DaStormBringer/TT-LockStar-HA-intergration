@@ -39,6 +39,7 @@ const DEADBOLT_UNLOCK_RECORD_TYPES = LogOperateCategory.UNLOCK.filter(
 );
 const FIRMWARE_READ_WAKE_WAIT_MS = 60000;
 const DEFAULT_PRECONNECT_HOLD_SECONDS = 15;
+const PRECONNECT_WAKE_WAIT_MS = 60000;
 
 function usesBluezDbus() {
   return ['dbus', 'bluez'].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT);
@@ -358,6 +359,9 @@ class Manager extends EventEmitter {
     if (existing && !lock.isConnected()) {
       await this.disconnectLock(address);
     }
+    if (!lock.isConnected() && !(await this._waitForPreparedAdvertisement(lock))) {
+      return false;
+    }
     if (!lock.isConnected() && !(await this._connectLock(lock, false))) {
       return false;
     }
@@ -375,6 +379,25 @@ class Manager extends EventEmitter {
       expiresAt: new Date(expiresAt).toISOString(),
       readOnly: true,
     };
+  }
+
+  async _waitForPreparedAdvertisement(lock, { timeoutMs = PRECONNECT_WAKE_WAIT_MS } = {}) {
+    if (!usesAdvertisementGatedTransport()) return true;
+    const address = lock.getAddress();
+    const startedAt = Date.now();
+    const advertisementAge = await waitForFreshLockAdvertisement(lock, {
+      freshnessMs: getCommandAdvertisementFreshnessMs(),
+      timeoutMs,
+    });
+    if (advertisementAge === false) {
+      console.log(`[Timing] ${address} preparation advertisement wait failed after ${Date.now() - startedAt}ms`);
+      return false;
+    }
+    console.log(
+      `[Timing] ${address} preparation advertisement wait completed after ${Date.now() - startedAt}ms `
+      + `(advertisement age ${advertisementAge}ms)`,
+    );
+    return true;
   }
 
   _claimPreparedConnection(lock) {
@@ -1646,3 +1669,4 @@ const manager = new Manager();
 module.exports = manager;
 module.exports.Manager = Manager;
 module.exports.DEFAULT_PRECONNECT_HOLD_SECONDS = DEFAULT_PRECONNECT_HOLD_SECONDS;
+module.exports.PRECONNECT_WAKE_WAIT_MS = PRECONNECT_WAKE_WAIT_MS;

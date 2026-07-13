@@ -3,7 +3,7 @@
 > [!CAUTION]
 > This API controls a physical lock and exposes sensitive credential data. Keep it behind Home Assistant authentication on a trusted local network. Do not treat a software success response as physical bolt verification.
 
-Alpha.48 introduced a generic, capability-discoverable API at the existing `/api` WebSocket endpoint. Alpha.49 added optional request correlation. Alpha.51 adds a bounded, read-only prepared connection for latency-sensitive local workflows. Existing frontend message types such as `status`, `lock`, `unlock`, `credentials`, `settings`, and `firmware` remain supported.
+Alpha.48 introduced a generic, capability-discoverable API at the existing `/api` WebSocket endpoint. Alpha.49 added optional request correlation. Alpha.51 added a bounded, read-only prepared connection for latency-sensitive local workflows, and alpha.52 gives preparation a longer sleeping-lock wake window. Existing frontend message types such as `status`, `lock`, `unlock`, `credentials`, `settings`, and `firmware` remain supported.
 
 ## Discover commands
 
@@ -144,7 +144,7 @@ The sleeping lock can take several seconds to emit its next connectable advertis
 }
 ```
 
-Preparation is read-only and does not require actuator confirmation. It sends no authentication, lock, or unlock payload. If no following command claims the session, the add-on disconnects automatically at the deadline. A claimed session is still subject to the authentication, validation, and exact-confirmation requirements of the following command. Keep the window short: an active session consumes lock battery and may temporarily contend with the TTLock app or G2 gateway.
+Preparation is read-only and does not require actuator confirmation. It can wait up to 60 seconds for a sleeping lock's next qualifying advertisement; the requested 5–30 second lease starts only after the BLE connection succeeds. Preparation sends no authentication, lock, or unlock payload. If no following command claims the session, the add-on disconnects automatically at the lease deadline. A claimed session is still subject to the authentication, validation, and exact-confirmation requirements of the following command. Keep the lease short: an active session consumes lock battery and may temporarily contend with the TTLock app or G2 gateway.
 
 ## Safety and scope boundaries
 

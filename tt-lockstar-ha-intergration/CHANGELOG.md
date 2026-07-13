@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.52] - 2026-07-13
+
+- Give only `lock.connection.prepare` up to 60 seconds to observe a qualifying sleeping-lock advertisement before it opens BLE; normal physical command advertisement and connection limits remain unchanged.
+- Start the caller's 5–30 second prepared-session lease only after connection succeeds, so time spent waiting for the lock does not consume the reusable window.
+- Record alpha.51's first live read-only preparation failure: no qualifying advertisement reached the strict gate within 15 seconds, the request failed closed, and no authentication or actuator command was sent.
+- Pass 93 JavaScript tests and 8 ESPHome bridge tests in the built `amd64` image; verify add-on 0.1.0-alpha.52, SDK 0.3.34, and 41 exposed commands.
+
 ## [0.1.0-alpha.51] - 2026-07-13
 
 - Add read-only `lock.connection.prepare`, which opens a command-ready BLE session and holds it for a caller-selected 5 through 30 seconds (15 seconds by default) so the next command can reuse it. It does not pre-authenticate or bypass the following command's authentication.
