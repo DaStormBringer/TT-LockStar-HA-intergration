@@ -45,6 +45,11 @@ function usesAdvertisementGatedTransport() {
   return ['dbus', 'bluez', 'esphome_proxy'].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT);
 }
 
+function defersAutomaticMetadataRefresh() {
+  return process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy'
+    && process.env.TTLOCK_ESPHOME_ADVERTISEMENT_SOURCE === 'direct';
+}
+
 function bluetoothTransportLabel() {
   return process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy'
     ? 'ESPHome'
@@ -1104,7 +1109,12 @@ class Manager extends EventEmitter {
         if (lock.lockedStatus === LockedStatus.UNKNOWN) {
           this.emit('lockStateUnknown', lock);
         }
-        if (this.client.isMonitoring()) {
+        if (defersAutomaticMetadataRefresh()) {
+          console.log(
+            `[Manager] Direct ESPHome mode discovered ${lock.getAddress()}; `
+            + 'deferring automatic metadata refresh for an explicit request',
+          );
+        } else if (this.client.isMonitoring()) {
           const result = await this._connectLock(lock, true);
           if (result == true) {
             console.log("Successful connect attempt to paired lock", lock.getAddress());

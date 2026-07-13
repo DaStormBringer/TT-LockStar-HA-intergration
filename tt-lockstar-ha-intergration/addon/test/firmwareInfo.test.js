@@ -80,3 +80,16 @@ test('websocket firmware request disconnects after the bounded read', () => {
   assert.match(source, /api\.sendFirmwareInfo\(firmwareInfo\)/);
   assert.match(source, /await manager\.disconnectLock\(msg\.data\.address\)/);
 });
+
+test('direct ESPHome discovery preserves the first connection for an explicit request', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../src/manager.js'), 'utf8');
+
+  assert.match(
+    source,
+    /TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy'[\s\S]*?TTLOCK_ESPHOME_ADVERTISEMENT_SOURCE === 'direct'/,
+  );
+  assert.match(
+    source,
+    /if \(defersAutomaticMetadataRefresh\(\)\) \{[\s\S]*?deferring automatic metadata refresh for an explicit request/,
+  );
+});

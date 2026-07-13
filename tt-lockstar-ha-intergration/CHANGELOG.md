@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0-alpha.47] - 2026-07-13
+
+- In direct ESPHome advertisement mode, discover paired locks without automatically consuming their first connectable wake for a full metadata refresh.
+- Preserve that first connection for an explicit firmware, status, or actuator request; no actuator command is added or changed.
+- Keep shared Home Assistant advertisement behavior unchanged.
+
 ## [0.1.0-alpha.46] - 2026-07-13
 
 - Infer a missing static-random BLE address type when Home Assistant's shared advertisement feed omits `address_type`, while preserving explicit types supplied by ESPHome.
