@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -40,6 +41,67 @@ def parse_endpoint(value: str) -> tuple[str, int]:
         host, port = value.rsplit(":", 1)
         return host, int(port)
     return value, 6053
+
+
+def parse_raw_advertisement(raw: Any) -> dict[str, Any]:
+    """Decode ESPHome's raw BLE AD structures into the parsed bridge shape."""
+    data = bytes(raw.data)
+    service_uuids: list[str] = []
+    service_data: dict[str, bytes] = {}
+    manufacturer_data: dict[int, bytes] = {}
+    name = ""
+    offset = 0
+
+    while offset < len(data):
+        length = data[offset]
+        if length == 0:
+            break
+        end = offset + length + 1
+        if end > len(data) or length < 1:
+            break
+        ad_type = data[offset + 1]
+        value = data[offset + 2 : end]
+
+        if ad_type in (0x02, 0x03):
+            service_uuids.extend(
+                f"{int.from_bytes(value[index:index + 2], 'little'):04x}"
+                for index in range(0, len(value) - 1, 2)
+            )
+        elif ad_type in (0x04, 0x05):
+            service_uuids.extend(
+                f"{int.from_bytes(value[index:index + 4], 'little'):08x}"
+                for index in range(0, len(value) - 3, 4)
+            )
+        elif ad_type in (0x06, 0x07):
+            service_uuids.extend(
+                str(uuid.UUID(bytes_le=value[index:index + 16]))
+                for index in range(0, len(value) - 15, 16)
+            )
+        elif ad_type in (0x08, 0x09):
+            name = value.decode("utf-8", errors="replace")
+        elif ad_type == 0x16 and len(value) >= 2:
+            key = f"{int.from_bytes(value[:2], 'little'):04x}"
+            service_data[key] = value[2:]
+        elif ad_type == 0x20 and len(value) >= 4:
+            key = f"{int.from_bytes(value[:4], 'little'):08x}"
+            service_data[key] = value[4:]
+        elif ad_type == 0x21 and len(value) >= 16:
+            key = str(uuid.UUID(bytes_le=value[:16]))
+            service_data[key] = value[16:]
+        elif ad_type == 0xFF and len(value) >= 2:
+            manufacturer_data[int.from_bytes(value[:2], "little")] = value[2:]
+
+        offset = end
+
+    return {
+        "address": raw.address,
+        "address_type": raw.address_type,
+        "rssi": raw.rssi,
+        "name": name,
+        "service_uuids": service_uuids,
+        "service_data": service_data,
+        "manufacturer_data": manufacturer_data,
+    }
 
 
 @dataclass
@@ -129,37 +191,48 @@ class Bridge:
                         f"(feature flags {proxy.feature_flags})"
                     )
 
-                # TTLock wake advertisements may be too short to discover reliably with
-                # passive scanning. ESPHome keeps this mode until another API subscriber
-                # changes it, so assert it each time this bridge reconnects.
-                client.bluetooth_scanner_set_mode(BluetoothScannerMode.ACTIVE)
-
-                def on_advertisement(advertisement: Any) -> None:
+                def publish_advertisement(advertisement: dict[str, Any]) -> None:
                     now = time.monotonic()
-                    proxy.advertisements[advertisement.address] = (
+                    address = int(advertisement["address"])
+                    proxy.advertisements[address] = (
                         now,
-                        advertisement.rssi,
-                        advertisement.address_type,
+                        int(advertisement["rssi"]),
+                        int(advertisement["address_type"]),
                     )
                     asyncio.create_task(self.emit({
                         "type": "advertisement",
                         "proxy": proxy.name,
                         "device": {
-                            "address": int_to_mac(advertisement.address),
-                            "address_type": advertisement.address_type,
-                            "rssi": advertisement.rssi,
-                            "name": advertisement.name,
-                            "service_uuids": advertisement.service_uuids,
+                            "address": int_to_mac(address),
+                            "address_type": advertisement["address_type"],
+                            "rssi": advertisement["rssi"],
+                            "name": advertisement["name"],
+                            "service_uuids": advertisement["service_uuids"],
                             "service_data": {
                                 key: value.hex()
-                                for key, value in advertisement.service_data.items()
+                                for key, value in advertisement["service_data"].items()
                             },
                             "manufacturer_data": {
                                 str(key): value.hex()
-                                for key, value in advertisement.manufacturer_data.items()
+                                for key, value in advertisement["manufacturer_data"].items()
                             },
                         },
                     }))
+
+                def on_advertisement(advertisement: Any) -> None:
+                    publish_advertisement({
+                        "address": advertisement.address,
+                        "address_type": advertisement.address_type,
+                        "rssi": advertisement.rssi,
+                        "name": advertisement.name,
+                        "service_uuids": advertisement.service_uuids,
+                        "service_data": advertisement.service_data,
+                        "manufacturer_data": advertisement.manufacturer_data,
+                    })
+
+                def on_raw_advertisements(response: Any) -> None:
+                    for advertisement in response.advertisements:
+                        publish_advertisement(parse_raw_advertisement(advertisement))
 
                 def on_connections_free(free: int, limit: int, allocated: list[int]) -> None:
                     proxy.free = free
@@ -172,15 +245,32 @@ class Bridge:
                         "allocated": [int_to_mac(address) for address in allocated],
                     }))
 
+                raw_advertisements = int(BluetoothProxyFeature.RAW_ADVERTISEMENTS)
+                if proxy.feature_flags & raw_advertisements:
+                    advertisement_unsubscriber = client.subscribe_bluetooth_le_raw_advertisements(
+                        on_raw_advertisements
+                    )
+                    advertisement_format = "raw batches"
+                else:
+                    advertisement_unsubscriber = client.subscribe_bluetooth_le_advertisements(
+                        on_advertisement
+                    )
+                    advertisement_format = "parsed messages"
                 proxy.unsubscribers = [
-                    client.subscribe_bluetooth_le_advertisements(on_advertisement),
+                    advertisement_unsubscriber,
                     client.subscribe_bluetooth_connections_free(on_connections_free),
                 ]
+
+                # TTLock wake advertisements may be too short to discover reliably with
+                # passive scanning. Assert active mode after claiming the single proxy
+                # subscription so older ESPHome firmware applies it to this client.
+                client.bluetooth_scanner_set_mode(BluetoothScannerMode.ACTIVE)
                 proxy.connected = True
                 delay = 1.0
                 log(
                     f"connected to {proxy.name} at {proxy.endpoint}; "
-                    f"Bluetooth proxy flags={proxy.feature_flags}; active scanning requested"
+                    f"Bluetooth proxy flags={proxy.feature_flags}; {advertisement_format}; "
+                    "active scanning requested"
                 )
                 await self.emit({"type": "proxy_state", "proxy": proxy.summary()})
                 if not self.ready_emitted:
