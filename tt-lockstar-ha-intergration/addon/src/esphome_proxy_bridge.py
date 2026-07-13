@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from aioesphomeapi import APIClient
-from aioesphomeapi.model import BluetoothProxyFeature
+from aioesphomeapi.model import BluetoothProxyFeature, BluetoothScannerMode
 
 
 def log(message: str) -> None:
@@ -122,6 +122,17 @@ class Bridge:
                         f"{proxy.name} lacks active connections or remote GATT caching "
                         f"(feature flags {proxy.feature_flags})"
                     )
+                scanner_control = int(BluetoothProxyFeature.FEATURE_STATE_AND_MODE)
+                if proxy.feature_flags & scanner_control != scanner_control:
+                    raise RuntimeError(
+                        f"{proxy.name} cannot switch its Bluetooth scanner to active mode "
+                        f"(feature flags {proxy.feature_flags})"
+                    )
+
+                # TTLock wake advertisements may be too short to discover reliably with
+                # passive scanning. ESPHome keeps this mode until another API subscriber
+                # changes it, so assert it each time this bridge reconnects.
+                client.bluetooth_scanner_set_mode(BluetoothScannerMode.ACTIVE)
 
                 def on_advertisement(advertisement: Any) -> None:
                     now = time.monotonic()
@@ -169,7 +180,7 @@ class Bridge:
                 delay = 1.0
                 log(
                     f"connected to {proxy.name} at {proxy.endpoint}; "
-                    f"Bluetooth proxy flags={proxy.feature_flags}"
+                    f"Bluetooth proxy flags={proxy.feature_flags}; active scanning requested"
                 )
                 await self.emit({"type": "proxy_state", "proxy": proxy.summary()})
                 if not self.ready_emitted:

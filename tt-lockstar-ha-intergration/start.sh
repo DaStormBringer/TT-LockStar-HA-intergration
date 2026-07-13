@@ -5,6 +5,13 @@ export MQTT_PORT=$(bashio::services mqtt "port")
 export MQTT_SSL=$(bashio::services mqtt "ssl")
 export MQTT_USER=$(bashio::services mqtt "username")
 export MQTT_PASS=$(bashio::services mqtt "password")
+
+if bashio::config.has_value "bluetooth_transport"; then
+  export TTLOCK_BLUETOOTH_TRANSPORT=$(bashio::config "bluetooth_transport")
+else
+  export TTLOCK_BLUETOOTH_TRANSPORT="raw_hci"
+fi
+
 if bashio::config.has_value "bluetooth_adapter"; then
   ADAPTER=$(bashio::config "bluetooth_adapter")
   if [[ $ADAPTER =~ hci([0-9]+) ]]; then
@@ -12,16 +19,14 @@ if bashio::config.has_value "bluetooth_adapter"; then
   else
     export NOBLE_HCI_DEVICE_ID="$ADAPTER"
   fi
-  bashio::log.info "Using Bluetooth adapter: hci${NOBLE_HCI_DEVICE_ID}"
+  if [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" != "esphome_proxy" ]]; then
+    bashio::log.info "Using Bluetooth adapter: hci${NOBLE_HCI_DEVICE_ID}"
+  fi
 else
   export NOBLE_HCI_DEVICE_ID="0"
-  bashio::log.info "No BLE adapter configured, defaulting to hci0"
-fi
-
-if bashio::config.has_value "bluetooth_transport"; then
-  export TTLOCK_BLUETOOTH_TRANSPORT=$(bashio::config "bluetooth_transport")
-else
-  export TTLOCK_BLUETOOTH_TRANSPORT="raw_hci"
+  if [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" != "esphome_proxy" ]]; then
+    bashio::log.info "No BLE adapter configured, defaulting to hci0"
+  fi
 fi
 
 if [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "esphome_proxy" ]]; then
@@ -33,6 +38,7 @@ if [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "esphome_proxy" ]]; then
   export TTLOCK_ESPHOME_PROXY_HOSTS=$(bashio::config "esphome_proxy_hosts")
   export TTLOCK_PROXY_PYTHON="/opt/ttlock-proxy/bin/python"
   bashio::log.warning "Using very experimental local ESPHome Bluetooth Proxy transport: ${TTLOCK_ESPHOME_PROXY_HOSTS}"
+  bashio::log.warning "ESPHome permits only one Bluetooth API subscriber; configured proxies are dedicated to TT LockStar while this add-on is running"
 elif [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "bluez" ]]; then
   unset NOBLE_BINDINGS
   export NOBLE_DBUS_ADAPTER_ID="hci${NOBLE_HCI_DEVICE_ID}"

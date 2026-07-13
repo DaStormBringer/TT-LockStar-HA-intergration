@@ -9,14 +9,16 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.31`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.32`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
 - Requires either a Bluetooth HCI adapter directly available to the Home Assistant Linux host or an explicitly configured local ESPHome Bluetooth Proxy.
 - Does not communicate through a TTLock G2 gateway.
-- ESPHome Bluetooth Proxy support is new in alpha.31 and has not yet completed a physical command test.
-- Alpha.31 supports only ESPHome native API endpoints without an API password or Noise encryption key; keep them on a trusted local network.
+- ESPHome Bluetooth Proxy support is new and has not yet completed a physical command test.
+- Alpha.32 supports only ESPHome native API endpoints without an API password or Noise encryption key; keep them on a trusted local network.
+- ESPHome currently allows one Bluetooth proxy API subscriber at a time. Configured proxy endpoints are dedicated to TT LockStar while this add-on runs, so Home Assistant Core cannot simultaneously receive Bluetooth advertisements from those same proxies.
+- Alpha.32 explicitly requests active scan mode; proxies must support scanner state/mode control, active connections, and remote GATT caching.
 - May contend with the TTLock app or G2 gateway when multiple systems contact the lock.
 - Magnetic door-contact state is not deadbolt position. The lock entity stays unknown when the newest operation does not explicitly confirm the bolt.
 - Must not be used as the only means of entering or securing the property.
@@ -54,6 +56,8 @@ Alpha.29 records the first physically verified native BlueZ round trip on the fr
 Alpha.30 targets the remaining command latency. Native BlueZ keeps discovery active while initiating a command connection, retries after 100 ms instead of 1.5 seconds, and bounds a failed command connection at 4.5 seconds instead of 6 seconds. It preserves authenticated command handling, the two-attempt limit, and every non-native transport policy. These timing changes require supervised physical validation before their performance or reliability is established.
 
 Alpha.31 adds a fully local `esphome_proxy` transport. A small Python bridge uses the ESPHome native API for advertisements, proxy selection, active BLE connections, GATT enumeration, reads, writes, and notifications while the existing JavaScript SDK continues to own TTLock credentials, encryption, and commands. It does not use TTLock Cloud or the G2 gateway. This path must pass read-only discovery and supervised physical command testing before it is considered hardware validated.
+
+Alpha.32 follows the first deployed read-only test, where an M302 keypad wake was not observed after the add-on reclaimed the proxy subscriptions. It explicitly requests active scanning on every proxy connection and documents that ESPHome's newest Bluetooth API subscriber owns the proxy stream. This remains a discovery fix awaiting the next live wake test; it is not a successful lock-operation claim.
 
 The installed alpha.16 image completed a supervised open-door physical cycle. Unlock returned `true` on the first manager attempt, the bolt retracted, and Home Assistant changed to `unlocked`. An immediate relock then failed: attempt 1 hit the 55-second hard timeout and attempts 2–3 could not connect, leaving the bolt physically retracted. Restarting only this add-on cleared Noble's stale raw-HCI session; the following lock returned `true` on its first manager attempt, extended the bolt, and changed Home Assistant to `locked`. Raw HCI can operate the lock, but sequential command recovery remains a blocking reliability defect.
 

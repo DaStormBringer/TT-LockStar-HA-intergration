@@ -13,9 +13,9 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.31`
+- Add-on version: `0.1.0-alpha.32`
 - Home Assistant stage: `experimental`
-- Development branch: `codex/local-esphome-proxy-alpha31`
+- Development branch: `codex/local-esphome-proxy-alpha32`
 - Target: Home Assistant on Linux
 - Verified image: Home Assistant Alpine Linux, `amd64`
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
@@ -36,7 +36,9 @@ This add-on communicates locally with a TTLock-compatible lock using a selectabl
 - The adapter is selected with `bluetooth_adapter`, normally `hci0` or `hci1`.
 - The transport is selected with `bluetooth_transport`: `raw_hci` by default, Noble-backed `dbus`, native `bluez`, or local `esphome_proxy`.
 - `esphome_proxy_hosts` is a comma-separated list of native API endpoints such as `192.168.1.30:6053,192.168.1.55:6053`. No TTLock Cloud or G2 gateway is used by this transport.
-- Alpha.31 supports ESPHome native API endpoints without an API password or Noise encryption key. Keep those endpoints on a trusted local network; encrypted proxy credentials are not implemented yet.
+- Alpha.32 supports ESPHome native API endpoints without an API password or Noise encryption key. Keep those endpoints on a trusted local network; encrypted proxy credentials are not implemented yet.
+- ESPHome currently routes Bluetooth proxy advertisements and GATT responses to one native-API subscriber at a time. Every endpoint in `esphome_proxy_hosts` is therefore dedicated to TT LockStar while this add-on runs; Home Assistant Core will not simultaneously receive Bluetooth advertisements through those same proxies. Configure only the proxy or proxies you are willing to dedicate.
+- Alpha.32 explicitly requests active scanning whenever it connects to a proxy. The proxy must expose scanner state/mode control in addition to active connections and remote GATT caching.
 - A TTLock G2 gateway is not a transport for this add-on and remains a separate TTLock app/cloud path.
 - Simultaneous access from the G2, TTLock app, and this add-on may cause Bluetooth contention or failed operations.
 
@@ -99,7 +101,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.31 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.32 \
   ./tt-lockstar-ha-intergration
 ```
 
