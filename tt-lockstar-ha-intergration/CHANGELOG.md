@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.37] - 2026-07-13
+
+- Use TTLock's documented `CHECK_ADMIN` challenge before unlock when the imported key contains an administrator password; ordinary eKeys retain `CHECK_USER_TIME`.
+- Keep the authenticated unlock payload, AES key, unlock key, response validation, and fail-closed behavior unchanged.
+- Record alpha.36's first physically confirmed ESPHome lock: authenticated success on attempt one in 4.66 seconds, with the user confirming the bolt extended.
+- Record three following supervised unlock failures: the back-to-back attempt could not reconnect, while later attempts connected but disconnected during `checkUserTime`; no unlock actuator payload was sent and the user confirmed the bolt remained locked each time.
+
 ## [0.1.0-alpha.36] - 2026-07-12
 
 - Batch each multipart TTLock command into one ordered Node-to-ESPHome bridge request while retaining 20 ms BLE fragment pacing.

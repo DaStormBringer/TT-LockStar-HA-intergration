@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.36`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.37`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -66,6 +66,8 @@ Alpha.34 follows a synchronized sole-subscriber capture. The deployed ESPHome fi
 After a supported integration handoff made the Living Room proxy the dedicated TT LockStar Bluetooth subscriber, alpha.34 completed a full read-only metadata session in 18.9 seconds and updated lock time through MQTT. Its first supervised unlock test then failed safely: both ESPHome connection attempts timed out before any unlock payload was written, and the user confirmed the deadbolt remained locked. Alpha.35 widens only the ESPHome connection window and allows its failed-connect cleanup to finish before a retry; it does not change command authentication or any direct-adapter timing.
 
 Alpha.35 then completed the first physically confirmed ESPHome proxy unlock on this M302. It connected through the Living Room proxy and returned authenticated success in 2.67 seconds; the user confirmed the deadbolt retracted. Two supervised relock commands subsequently connected but lost the BLE session during the authenticated `checkUserTime` exchange, before either actuator payload was written; the user confirmed the bolt remained unlocked. Alpha.36 sends the three BLE fragments of each handshake as one ordered bridge transaction to reduce process/API round-trip latency while preserving 20 ms pacing and the full TTLock authentication exchange. It still requires supervised hardware validation.
+
+Alpha.36 then completed a physically confirmed ESPHome proxy lock on its first attempt in 4.66 seconds. The authenticated response returned and the user confirmed the deadbolt extended. Three subsequent unlock tests failed safely: the immediate attempt could not establish another GATT session, and later attempts connected but disconnected during `checkUserTime`; no unlock actuator command was written and the user confirmed the bolt remained locked each time. The official TTLock Android flow uses administrator authentication for an administrator unlock, while the inherited JavaScript SDK always used the ordinary-user time check. Alpha.37 selects `CHECK_ADMIN` only when an imported administrator password is present and retains the existing time-window path for ordinary eKeys. This remains supervised-test-only.
 
 The installed alpha.16 image completed a supervised open-door physical cycle. Unlock returned `true` on the first manager attempt, the bolt retracted, and Home Assistant changed to `unlocked`. An immediate relock then failed: attempt 1 hit the 55-second hard timeout and attempts 2–3 could not connect, leaving the bolt physically retracted. Restarting only this add-on cleared Noble's stale raw-HCI session; the following lock returned `true` on its first manager attempt, extended the bolt, and changed Home Assistant to `locked`. Raw HCI can operate the lock, but sequential command recovery remains a blocking reliability defect.
 

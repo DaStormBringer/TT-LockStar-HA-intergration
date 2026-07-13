@@ -21,6 +21,7 @@ const TARGETED_NOBLE_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_SERVICE_DISC
 const TARGETED_COMMAND_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_COMMAND_DISCOVERY';
 const DBUS_COMMAND_PACING_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_COMMAND_PACING';
 const ESPHOME_ATOMIC_WRITE_PATCH_MARKER = 'TT_LOCKSTAR_ESPHOME_ATOMIC_WRITE';
+const ADMIN_UNLOCK_PATCH_MARKER = 'TT_LOCKSTAR_ADMIN_UNLOCK';
 const DIRECT_COMMAND_ENVELOPE_PATCH_MARKER = 'TT_LOCKSTAR_DIRECT_COMMAND_ENVELOPE';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
@@ -206,6 +207,46 @@ function patchEsphomeAtomicWrite(source) {
         }
         do {`,
     'TTBluetoothDevice ESPHome atomic multipart write',
+  );
+}
+
+function patchAdminUnlock(source) {
+  if (source.includes(ADMIN_UNLOCK_PATCH_MARKER)) return source;
+
+  return replaceExactlyOnce(
+    source,
+    `    async unlock() {
+        if (!this.isConnected()) {
+            throw new Error("Lock is not connected");
+        }
+        if (!this.initialized) {
+            throw new Error("Lock is in pairing mode");
+        }
+        try {
+            console.log("========= check user time");
+            const psFromLock = await this.checkUserTime();
+            console.log("========= check user time", psFromLock);
+            console.log("========= unlock");`,
+    `    async unlock() {
+        if (!this.isConnected()) {
+            throw new Error("Lock is not connected");
+        }
+        if (!this.initialized) {
+            throw new Error("Lock is in pairing mode");
+        }
+        try {
+            // ${ADMIN_UNLOCK_PATCH_MARKER}: TTLock's documented administrator
+            // path authenticates unlock with CHECK_ADMIN. Ordinary eKeys retain
+            // CHECK_USER_TIME and its validity window.
+            const hasAdminPassword = this.privateData.admin
+                && typeof this.privateData.admin.adminPs !== "undefined";
+            console.log(hasAdminPassword ? "========= check admin for unlock" : "========= check user time");
+            const psFromLock = hasAdminPassword
+                ? await this.checkAdminCommand()
+                : await this.checkUserTime();
+            console.log(hasAdminPassword ? "========= check admin for unlock" : "========= check user time", psFromLock);
+            console.log("========= unlock");`,
+    'TTLock administrator unlock authentication',
   );
 }
 
@@ -621,7 +662,8 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   lockApiSource = patchLockStateInitialization(lockApiSource);
   lockApiSource = patchLockStateAdvertisement(lockApiSource);
   fs.writeFileSync(lockApiPath, lockApiSource);
-  let lockSource = patchDeadboltStatusQuery(fs.readFileSync(lockPath, 'utf8'));
+  let lockSource = patchAdminUnlock(fs.readFileSync(lockPath, 'utf8'));
+  lockSource = patchDeadboltStatusQuery(lockSource);
   lockSource = patchFastCommandLockConnect(lockSource);
   lockSource = patchCommandConnectState(lockSource);
   fs.writeFileSync(lockPath, lockSource);
@@ -653,6 +695,7 @@ module.exports = {
   patchDirectCommandEnvelopeImport,
   patchDbusCommandPacing,
   patchEsphomeAtomicWrite,
+  patchAdminUnlock,
   patchLockStateAdvertisement,
   patchLockStateInitialization,
   patchNobleEntrypoint,
