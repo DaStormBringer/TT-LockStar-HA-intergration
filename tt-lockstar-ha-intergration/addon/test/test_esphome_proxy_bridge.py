@@ -200,19 +200,21 @@ class RawAdvertisementTests(unittest.TestCase):
         self.assertEqual(second["mtu"], 23)
         self.assertEqual(first_services, second_services)
 
-    def test_cached_connect_failure_retries_uncached(self):
+    def test_cached_connect_failure_preserves_cache_and_retries_uncached(self):
         class FakeClient:
             def __init__(self):
                 self.connect_cache_flags = []
+                self.connect_timeouts = []
                 self.cache_clears = 0
 
             async def bluetooth_device_connect(
                 self, address, callback, timeout, feature_flags, has_cache, address_type
             ):
-                del address, timeout, feature_flags, address_type
+                del address, feature_flags, address_type
                 self.connect_cache_flags.append(has_cache)
+                self.connect_timeouts.append(timeout)
                 if has_cache:
-                    raise RuntimeError("stale handles")
+                    raise TimeoutError("cached connect timed out")
                 callback(True, 23, 0)
                 return lambda: None
 
@@ -234,9 +236,41 @@ class RawAdvertisementTests(unittest.TestCase):
 
         client, bridge, address, result = __import__("asyncio").run(run_test())
         self.assertEqual(client.connect_cache_flags, [True, False])
+        self.assertEqual(client.connect_timeouts, [4.0, 8])
+        self.assertEqual(client.cache_clears, 0)
+        self.assertIn(address, bridge.gatt_cache)
+        self.assertFalse(result["cached_gatt"])
+
+    def test_explicit_cache_clear_still_clears_local_and_remote_cache(self):
+        class FakeClient:
+            def __init__(self):
+                self.cache_clears = 0
+
+            async def bluetooth_device_clear_cache(self, address):
+                del address
+                self.cache_clears += 1
+                return SimpleNamespace(success=True, error=0)
+
+        async def run_test():
+            client = FakeClient()
+            proxy = Proxy("test:6053", "test", 6053, client=client, connected=True, name="test")
+            bridge = Bridge([])
+            bridge.proxies = [proxy]
+            address_text = "DC:47:11:85:94:2F"
+            address = mac_to_int(address_text)
+            bridge.active[address] = proxy
+            bridge.active_cache_hits.add(address)
+            bridge.gatt_cache[address] = [{"uuid": "1910", "handle": 1, "characteristics": []}]
+            bridge.mtu_cache[address] = 23
+            result = await bridge.handle({"action": "clear_cache", "address": address_text})
+            return client, bridge, address, result
+
+        client, bridge, address, result = __import__("asyncio").run(run_test())
+        self.assertEqual(result, {"success": True, "error": 0})
         self.assertEqual(client.cache_clears, 1)
         self.assertNotIn(address, bridge.gatt_cache)
-        self.assertFalse(result["cached_gatt"])
+        self.assertNotIn(address, bridge.mtu_cache)
+        self.assertNotIn(address, bridge.active_cache_hits)
 
 
 if __name__ == "__main__":
