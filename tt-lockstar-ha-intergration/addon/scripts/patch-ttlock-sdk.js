@@ -23,6 +23,8 @@ const DBUS_COMMAND_PACING_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_COMMAND_PACING';
 const ESPHOME_ATOMIC_WRITE_PATCH_MARKER = 'TT_LOCKSTAR_ESPHOME_ATOMIC_WRITE';
 const ADMIN_UNLOCK_PATCH_MARKER = 'TT_LOCKSTAR_ADMIN_UNLOCK';
 const DIRECT_COMMAND_ENVELOPE_PATCH_MARKER = 'TT_LOCKSTAR_DIRECT_COMMAND_ENVELOPE';
+const FEATURE_LIST_RESTORE_PATCH_MARKER = 'TT_LOCKSTAR_FEATURE_LIST_RESTORE';
+const FEATURE_LIST_PERSISTENCE_PATCH_MARKER = 'TT_LOCKSTAR_FEATURE_LIST_PERSISTENCE';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
   const count = source.split(expected).length - 1;
@@ -621,6 +623,38 @@ function patchDeadboltStatusQuery(source) {
   return patched;
 }
 
+function patchFeatureListRestore(source) {
+  if (source.includes(FEATURE_LIST_RESTORE_PATCH_MARKER)) return source;
+  return replaceExactlyOnce(
+    source,
+    '        this.privateData.pwdInfo = privateData.pwdInfo;',
+    `        this.privateData.pwdInfo = privateData.pwdInfo;
+        // ${FEATURE_LIST_RESTORE_PATCH_MARKER}: retain hardware capability
+        // discovery across add-on restarts without another broad metadata read.
+        if (Array.isArray(data.featureList)) {
+            this.featureList = new Set(data.featureList.filter(Number.isInteger));
+        }`,
+    'TTLockApi feature-list restore',
+  );
+}
+
+function patchFeatureListPersistence(source) {
+  if (source.includes(FEATURE_LIST_PERSISTENCE_PATCH_MARKER)) return source;
+  return replaceExactlyOnce(
+    source,
+    `                autoLockTime: this.autoLockTime ? this.autoLockTime : -1,
+                lockedStatus: this.lockedStatus,
+                privateData: privateData,`,
+    `                // ${FEATURE_LIST_PERSISTENCE_PATCH_MARKER}: persist zero as
+                // a valid disabled auto-lock delay and serialize Set as an array.
+                autoLockTime: Number.isInteger(this.autoLockTime) ? this.autoLockTime : -1,
+                lockedStatus: this.lockedStatus,
+                featureList: this.featureList ? Array.from(this.featureList) : undefined,
+                privateData: privateData,`,
+    'TTLock feature-list persistence',
+  );
+}
+
 function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   const sdkRoot = path.join(addonRoot, 'node_modules', 'ttlock-sdk-js');
   const sdkPackage = JSON.parse(fs.readFileSync(path.join(sdkRoot, 'package.json'), 'utf8'));
@@ -663,12 +697,14 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   let lockApiSource = fs.readFileSync(lockApiPath, 'utf8');
   lockApiSource = patchDirectCommandEnvelopeImport(lockApiSource);
   lockApiSource = patchLockStateInitialization(lockApiSource);
+  lockApiSource = patchFeatureListRestore(lockApiSource);
   lockApiSource = patchLockStateAdvertisement(lockApiSource);
   fs.writeFileSync(lockApiPath, lockApiSource);
   let lockSource = patchAdminUnlock(fs.readFileSync(lockPath, 'utf8'));
   lockSource = patchDeadboltStatusQuery(lockSource);
   lockSource = patchFastCommandLockConnect(lockSource);
   lockSource = patchCommandConnectState(lockSource);
+  lockSource = patchFeatureListPersistence(lockSource);
   fs.writeFileSync(lockPath, lockSource);
   fs.writeFileSync(
     nobleEntrypointPath,
@@ -693,6 +729,8 @@ module.exports = {
   patchCommandConnectState,
   patchFastCommandDeviceConnect,
   patchFastCommandLockConnect,
+  patchFeatureListPersistence,
+  patchFeatureListRestore,
   patchInstalledSdk,
   patchDeadboltStatusQuery,
   patchDirectCommandEnvelopeImport,

@@ -5,7 +5,12 @@ const test = require('node:test');
 
 process.env.TTLOCK_BLUETOOTH_TRANSPORT = 'esphome_proxy';
 
-const { AudioManage, ConfigRemoteUnlock, LockedStatus } = require('ttlock-sdk-js/dist/constant');
+const {
+  AudioManage,
+  ConfigRemoteUnlock,
+  FeatureValue,
+  LockedStatus,
+} = require('ttlock-sdk-js/dist/constant');
 const manager = require('../src/manager');
 const store = require('../src/store');
 
@@ -26,6 +31,15 @@ test('new high-level manager commands use command-only SDK sessions', async (t) 
   const passage = { type: 1, weekOrDay: 0, month: 0, startHour: '0800', endHour: '1700' };
   const lock = {
     lockedStatus: LockedStatus.LOCKED,
+    featureList: new Set([
+      FeatureValue.PASSCODE,
+      FeatureValue.IC,
+      FeatureValue.FINGER_PRINT,
+      FeatureValue.AUTO_LOCK,
+      FeatureValue.CONFIG_GATEWAY_UNLOCK,
+      FeatureValue.AUDIO_MANAGEMENT,
+      FeatureValue.PASSAGE_MODE,
+    ]),
     hasAutolock: () => true,
     hasLockSound: () => true,
     hasPassCode: () => true,
@@ -65,6 +79,18 @@ test('new high-level manager commands use command-only SDK sessions', async (t) 
   assert.equal(await manager.clearPassageMode(ADDRESS), true);
   assert.deepEqual(await manager.getRemoteUnlock(ADDRESS), { value: 0, enabled: false });
   assert.deepEqual(await manager.setRemoteUnlock(ADDRESS, true), { value: 1, enabled: true });
+  const featureResult = await manager.getLockFeatures(ADDRESS);
+  assert.equal(featureResult.source, 'saved-or-process-cache');
+  assert.deepEqual(featureResult.supports, {
+    autoLock: true,
+    audio: true,
+    passcode: true,
+    card: true,
+    fingerprint: true,
+    passageMode: true,
+    remoteUnlockConfiguration: true,
+  });
+  assert.equal(featureResult.features.some(item => item.name === 'PASSCODE'), true);
   assert.equal(await manager.clearPasscodes(ADDRESS), true);
   assert.equal(await manager.clearCards(ADDRESS), true);
   assert.equal(await manager.clearFingers(ADDRESS), true);
@@ -100,4 +126,45 @@ test('new high-level manager commands use command-only SDK sessions', async (t) 
     [ADDRESS, 'fingers', []],
   ]);
   assert.equal(calls.some(item => item[0] === 'setLockSound' && item[1] === AudioManage.TURN_OFF), true);
+});
+
+test('loads and persists hardware features before feature-gated commands', async (t) => {
+  const originalPairedLocks = manager.pairedLocks;
+  const originalConnect = manager._connectLock;
+  const originalClient = manager.client;
+  const originalSetLockData = store.setLockData;
+  t.after(() => {
+    manager.pairedLocks = originalPairedLocks;
+    manager._connectLock = originalConnect;
+    manager.client = originalClient;
+    store.setLockData = originalSetLockData;
+  });
+
+  const lock = {
+    getAddress: () => ADDRESS,
+    hasAutolock: () => lock.featureList.has(FeatureValue.AUTO_LOCK),
+    hasLockSound: () => lock.featureList.has(FeatureValue.AUDIO_MANAGEMENT),
+    hasPassCode: () => lock.featureList.has(FeatureValue.PASSCODE),
+    hasICCard: () => lock.featureList.has(FeatureValue.IC),
+    hasFingerprint: () => lock.featureList.has(FeatureValue.FINGER_PRINT),
+  };
+  const saved = [{ address: ADDRESS, featureList: [FeatureValue.PASSCODE, FeatureValue.AUTO_LOCK] }];
+  let persisted;
+  manager.pairedLocks = new Map([[ADDRESS, lock]]);
+  manager.client = { getLockData: () => saved };
+  manager._connectLock = async (candidate, readData) => {
+    assert.equal(candidate, lock);
+    assert.equal(readData, true);
+    lock.featureList = new Set([FeatureValue.PASSCODE, FeatureValue.AUTO_LOCK]);
+    return true;
+  };
+  store.setLockData = async value => { persisted = value; };
+
+  const result = await manager.getLockFeatures(ADDRESS);
+
+  assert.equal(result.source, 'live-read-only-discovery');
+  assert.equal(result.supports.passcode, true);
+  assert.equal(result.supports.autoLock, true);
+  assert.equal(result.supports.card, false);
+  assert.deepEqual(persisted, saved);
 });

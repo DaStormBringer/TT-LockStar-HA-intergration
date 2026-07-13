@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.55] - 2026-07-13
+
+- Add `lock.features.get` for explicit read-only hardware capability discovery and raise the generic API catalog to 42 commands.
+- Lazy-load the SDK feature list before non-biometric feature-gated settings, PIN, card, passage-mode, and remote-unlock operations instead of returning a false unsupported result after a direct ESPHome restart.
+- Persist the numeric feature list across add-on restarts and correctly retain an auto-lock delay of zero as the valid disabled state.
+- Keep biometric enrollment and management last and unvalidated; this release sends no fingerprint command.
+- Pass 104 JavaScript tests and 8 ESPHome bridge tests in the built `amd64` image; verify add-on 0.1.0-alpha.55, SDK 0.3.34, and 42 exposed commands.
+
 ## [0.1.0-alpha.54] - 2026-07-13
 
 - Record a manual locked-to-unlocked comparison in which the M302 advertised `isUnlock: false` and `hasEvents: false` in both physically verified positions, proving those bits are not continuous bolt-position evidence.
