@@ -142,16 +142,28 @@ test('persists decoded hardware features after a late SDK disconnect', async (t)
 
   const lock = {
     getAddress: () => ADDRESS,
+    getLockData: () => ({
+      address: ADDRESS,
+      battery: 100,
+      featureList: Array.from(lock.featureList || []),
+    }),
     hasAutolock: () => lock.featureList.has(FeatureValue.AUTO_LOCK),
     hasLockSound: () => lock.featureList.has(FeatureValue.AUDIO_MANAGEMENT),
     hasPassCode: () => lock.featureList.has(FeatureValue.PASSCODE),
     hasICCard: () => lock.featureList.has(FeatureValue.IC),
     hasFingerprint: () => lock.featureList.has(FeatureValue.FINGER_PRINT),
   };
-  const saved = [{ address: ADDRESS, featureList: [FeatureValue.PASSCODE, FeatureValue.AUTO_LOCK] }];
+  const staleSaved = [
+    { address: ADDRESS, battery: 90 },
+    { address: '11:22:33:44:55:66', battery: 50 },
+  ];
+  let clientData = staleSaved;
   let persisted;
   manager.pairedLocks = new Map([[ADDRESS, lock]]);
-  manager.client = { getLockData: () => saved };
+  manager.client = {
+    getLockData: () => clientData,
+    setLockData: value => { clientData = value; },
+  };
   manager._connectLock = async (candidate, readData) => {
     assert.equal(candidate, lock);
     assert.equal(readData, true);
@@ -166,5 +178,13 @@ test('persists decoded hardware features after a late SDK disconnect', async (t)
   assert.equal(result.supports.passcode, true);
   assert.equal(result.supports.autoLock, true);
   assert.equal(result.supports.card, false);
-  assert.deepEqual(persisted, saved);
+  assert.deepEqual(persisted, [
+    {
+      address: ADDRESS,
+      battery: 100,
+      featureList: [FeatureValue.PASSCODE, FeatureValue.AUTO_LOCK],
+    },
+    { address: '11:22:33:44:55:66', battery: 50 },
+  ]);
+  assert.deepEqual(clientData, persisted);
 });

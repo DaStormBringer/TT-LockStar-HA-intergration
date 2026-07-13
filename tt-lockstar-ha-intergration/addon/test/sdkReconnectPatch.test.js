@@ -363,7 +363,7 @@ test('does not infer room deadbolt state during command-only reconnect', () => {
   assert.equal(patchCommandConnectState(patched), patched);
 });
 
-test('restores a saved hardware feature list as an SDK Set', () => {
+test('restores saved hardware features and last observed settings', () => {
   const source = '        this.privateData.pwdInfo = privateData.pwdInfo;';
 
   const patched = patchFeatureListRestore(source);
@@ -371,10 +371,12 @@ test('restores a saved hardware feature list as an SDK Set', () => {
   assert.match(patched, /TT_LOCKSTAR_FEATURE_LIST_RESTORE/);
   assert.match(patched, /this\.featureList = new Set/);
   assert.match(patched, /data\.featureList\.filter\(Number\.isInteger\)/);
+  assert.match(patched, /this\.autoLockTime = data\.autoLockTime/);
+  assert.match(patched, /this\.lockSound = data\.lockSound/);
   assert.equal(patchFeatureListRestore(patched), patched);
 });
 
-test('serializes hardware features and preserves disabled auto-lock', () => {
+test('serializes hardware features and last observed settings', () => {
   const source = `                autoLockTime: this.autoLockTime ? this.autoLockTime : -1,
                 lockedStatus: this.lockedStatus,
                 privateData: privateData,`;
@@ -383,6 +385,7 @@ test('serializes hardware features and preserves disabled auto-lock', () => {
 
   assert.match(patched, /TT_LOCKSTAR_FEATURE_LIST_PERSISTENCE/);
   assert.match(patched, /Number\.isInteger\(this\.autoLockTime\)/);
+  assert.match(patched, /lockSound: this\.lockSound/);
   assert.match(patched, /Array\.from\(this\.featureList\)/);
   assert.equal(patchFeatureListPersistence(patched), patched);
 });
