@@ -93,7 +93,20 @@ class Store {
 
   setCredentialsCache(address, creds) {
     this.credentialsCache[address] = creds;
-    this.saveData();
+    return this.saveData();
+  }
+
+  setCredentialList(address, kind, values) {
+    const cached = this.credentialsCache[address] || {};
+    cached[kind] = values;
+    this.credentialsCache[address] = cached;
+    return this.saveData();
+  }
+
+  invalidateCredentialList(address, kind) {
+    const cached = this.credentialsCache[address];
+    if (cached) delete cached[kind];
+    return this.saveData();
   }
 
   getOperationsCache(address) {

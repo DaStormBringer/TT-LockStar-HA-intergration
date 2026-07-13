@@ -52,6 +52,8 @@ test('firmware revision uses one read-only command over a command-only connectio
     address,
     command: 'COMM_READ_DEVICE_INFO',
     infoType: 'FIRMWARE_REVISION',
+    value: '2.1.16.705',
+    rawHex: '322e312e31362e37303500',
     firmwareRevision: '2.1.16.705',
     gattFirmware: 'unknown',
     readOnly: true,

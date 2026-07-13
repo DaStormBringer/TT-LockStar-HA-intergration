@@ -141,6 +141,13 @@ class Bridge:
         self.active: dict[int, Proxy] = {}
         self.connection_unsubscribers: dict[int, Any] = {}
         self.notification_stops: dict[tuple[int, int], tuple[Any, Any]] = {}
+        # aioesphomeapi's cached-connect mode means the requestor already owns
+        # the service table and negotiated MTU. Keep that data in this bridge
+        # process so repeat TTLock commands do not rediscover an unchanged GATT
+        # database on every short-lived connection.
+        self.gatt_cache: dict[int, list[dict[str, Any]]] = {}
+        self.mtu_cache: dict[int, int] = {}
+        self.active_cache_hits: set[int] = set()
         self.ready_emitted = False
         self.shutting_down = False
 
@@ -335,6 +342,7 @@ class Bridge:
                 for address, active_proxy in list(self.active.items()):
                     if active_proxy is proxy:
                         self.active.pop(address, None)
+                        self.active_cache_hits.discard(address)
                         self.clear_notification_subscriptions(address, "ESPHome proxy disconnected")
                         await self.emit({
                             "type": "connection",
@@ -420,33 +428,63 @@ class Bridge:
                 }))
                 if not connected:
                     self.active.pop(address, None)
+                    self.active_cache_hits.discard(address)
                     self.clear_notification_subscriptions(address, "BLE disconnected")
 
-            try:
-                unsubscribe = await proxy.client.bluetooth_device_connect(
-                    address,
-                    on_connection,
-                    timeout=timeout,
-                    feature_flags=proxy.feature_flags,
-                    has_cache=False,
-                    address_type=address_type,
-                )
-                if not state["connected"]:
-                    unsubscribe()
-                    raise RuntimeError(f"connection rejected with GATT error {state['error']}")
-                previous = self.connection_unsubscribers.pop(address, None)
-                if previous:
-                    previous()
-                self.connection_unsubscribers[address] = unsubscribe
-                self.active[address] = proxy
-                return {
-                    "proxy": proxy.name,
-                    "mtu": state["mtu"],
-                    "address_type": address_type,
-                }
-            except Exception as error:  # pylint: disable=broad-except
-                errors.append(f"{proxy.name}: {error}")
-                log(f"connect {int_to_mac(address)} through {proxy.name} failed: {error}")
+            cache_available = address in self.gatt_cache
+            attempts = [True, False] if cache_available else [False]
+            for use_cache in attempts:
+                state.update(connected=False, mtu=0, error=0)
+                try:
+                    unsubscribe = await proxy.client.bluetooth_device_connect(
+                        address,
+                        on_connection,
+                        timeout=timeout,
+                        feature_flags=proxy.feature_flags,
+                        has_cache=use_cache,
+                        address_type=address_type,
+                    )
+                    if not state["connected"]:
+                        unsubscribe()
+                        raise RuntimeError(f"connection rejected with GATT error {state['error']}")
+                    previous = self.connection_unsubscribers.pop(address, None)
+                    if previous:
+                        previous()
+                    self.connection_unsubscribers[address] = unsubscribe
+                    self.active[address] = proxy
+                    if use_cache:
+                        self.active_cache_hits.add(address)
+                    else:
+                        self.active_cache_hits.discard(address)
+                    mtu = int(state["mtu"] or self.mtu_cache.get(address, 0))
+                    if mtu > 0:
+                        self.mtu_cache[address] = mtu
+                    return {
+                        "proxy": proxy.name,
+                        "mtu": mtu,
+                        "address_type": address_type,
+                        "cached_gatt": use_cache,
+                    }
+                except Exception as error:  # pylint: disable=broad-except
+                    if use_cache:
+                        log(
+                            f"cached connect {int_to_mac(address)} through {proxy.name} "
+                            f"failed; invalidating cache and retrying uncached: {error}"
+                        )
+                        self.gatt_cache.pop(address, None)
+                        self.mtu_cache.pop(address, None)
+                        self.active_cache_hits.discard(address)
+                        try:
+                            await proxy.client.bluetooth_device_clear_cache(address)
+                        except Exception as clear_error:  # pylint: disable=broad-except
+                            log(
+                                f"remote cache clear for {int_to_mac(address)} failed: "
+                                f"{clear_error}"
+                            )
+                        continue
+                    errors.append(f"{proxy.name}: {error}")
+                    log(f"connect {int_to_mac(address)} through {proxy.name} failed: {error}")
+                    break
 
         raise RuntimeError("; ".join(errors))
 
@@ -474,13 +512,19 @@ class Bridge:
             if unsubscribe:
                 unsubscribe()
             self.active.pop(address, None)
+            self.active_cache_hits.discard(address)
             return True
         if action == "clear_cache":
+            self.gatt_cache.pop(address, None)
+            self.mtu_cache.pop(address, None)
+            self.active_cache_hits.discard(address)
             result = await client.bluetooth_device_clear_cache(address)
             return {"success": result.success, "error": result.error}
         if action == "services":
+            if address in self.active_cache_hits and address in self.gatt_cache:
+                return self.gatt_cache[address]
             result = await client.bluetooth_gatt_get_services(address)
-            return [
+            services = [
                 {
                     "uuid": service.uuid,
                     "handle": service.handle,
@@ -499,6 +543,8 @@ class Bridge:
                 }
                 for service in result.services
             ]
+            self.gatt_cache[address] = services
+            return services
         handle = int(request["handle"])
         if action == "read":
             data = await client.bluetooth_gatt_read(address, handle)

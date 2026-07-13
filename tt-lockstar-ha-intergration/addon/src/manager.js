@@ -4,6 +4,7 @@ const EventEmitter = require('events');
 const store = require("./store");
 const {
   AudioManage,
+  ConfigRemoteUnlock,
   DeviceInfoEnum,
   LockedStatus,
   LogOperate,
@@ -381,7 +382,7 @@ class Manager extends EventEmitter {
   async setAutoLock(address, value) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!(await this._connectLock(lock))) {
+      if (!lock.hasAutolock() || !(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -395,10 +396,46 @@ class Manager extends EventEmitter {
     return false;
   }
 
+  async getAutoLock(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined") {
+      if (!lock.hasAutolock() || !(await this._connectLock(lock, false))) {
+        return false;
+      }
+      try {
+        const value = await lock.getAutolockTime(true);
+        this.emit("lockUpdated", lock);
+        return value;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return false;
+  }
+
+  getLockStatusEvidence(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock == "undefined") return false;
+    const status = Number.isInteger(lock.lockedStatus)
+      ? lock.lockedStatus
+      : LockedStatus.UNKNOWN;
+    return {
+      address,
+      status,
+      statusName: LockedStatus[status] || "UNKNOWN",
+      doorState: store.getDoorState(address),
+      liveCommandSent: false,
+      source: status === LockedStatus.UNKNOWN
+        ? "unknown"
+        : "last-confirmed-command-or-operation-log",
+      readOnly: true,
+    };
+  }
+
   async getLockTime(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -412,15 +449,15 @@ class Manager extends EventEmitter {
     return false;
   }
 
-  /**
-   * Read only the lock firmware revision through TTLock's
-   * COMM_READ_DEVICE_INFO command. This intentionally uses a command-only
-   * connection and does not send an actuator or settings command.
-   */
-  async getFirmwareInfo(address) {
+  async getDeviceInfo(address, infoType = "FIRMWARE_REVISION") {
     const lock = this.pairedLocks.get(address);
     if (typeof lock == "undefined") {
       return false;
+    }
+    const infoTypeName = typeof infoType === "string" ? infoType.toUpperCase() : DeviceInfoEnum[infoType];
+    const infoTypeValue = DeviceInfoEnum[infoTypeName];
+    if (!Number.isInteger(infoTypeValue)) {
+      throw new Error(`Unsupported device info type: ${String(infoType)}`);
     }
     this.firmwareReadReservations.add(address);
     try {
@@ -428,14 +465,14 @@ class Manager extends EventEmitter {
       // window. Reserving the address first prevents a queued refresh from
       // consuming the next keypad advertisement.
       while (this.lockMutexes.has(address)) {
-        console.log(`[Manager] Firmware read waiting for an existing ${address} connection to finish...`);
+        console.log(`[Manager] Device-info read waiting for an existing ${address} connection to finish...`);
         await this.lockMutexes.get(address).promise;
       }
       this.connectQueue.delete(address);
 
       if (usesAdvertisementGatedTransport()) {
         console.log(
-          `[Manager] Firmware read armed for ${address}; waiting up to `
+          `[Manager] Device-info read armed for ${address}; waiting up to `
           + `${FIRMWARE_READ_WAKE_WAIT_MS}ms for a fresh advertisement`,
         );
         const advertisementAge = await waitForFreshLockAdvertisement(lock, {
@@ -445,48 +482,58 @@ class Manager extends EventEmitter {
         if (advertisementAge === false) {
           throw new Error(
             `[Bluetooth][${bluetoothTransportLabel()}] No fresh advertisement from ${address} `
-            + `within the ${FIRMWARE_READ_WAKE_WAIT_MS}ms firmware-read window`,
+            + `within the ${FIRMWARE_READ_WAKE_WAIT_MS}ms device-info window`,
           );
         }
-        console.log(`[Manager] Firmware read received a ${advertisementAge}ms-old advertisement from ${address}`);
+        console.log(`[Manager] Device-info read received a ${advertisementAge}ms-old advertisement from ${address}`);
       }
 
       if (!(await this._connectLock(lock, false))) {
         return false;
       }
-      const rawRevision = await lock.readDeviceInfoCommand(DeviceInfoEnum.FIRMWARE_REVISION);
-      const firmwareRevision = Buffer.isBuffer(rawRevision)
-        ? rawRevision.toString('utf8').replace(/\0+$/g, '').trim()
-        : String(rawRevision ?? '').trim();
-      if (!firmwareRevision) {
-        throw new Error('Lock returned an empty firmware revision');
-      }
-      const gattFirmware = typeof lock.getFirmware === 'function'
-        ? String(lock.getFirmware() ?? '').trim()
-        : '';
+      const raw = await lock.readDeviceInfoCommand(infoTypeValue);
+      const rawBuffer = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw ?? ''), 'utf8');
+      const text = rawBuffer.toString('utf8').replace(/\0+$/g, '').trim();
+      const printableText = text && /^[\x20-\x7e]+$/.test(text) ? text : undefined;
       const info = {
         address,
         command: 'COMM_READ_DEVICE_INFO',
-        infoType: 'FIRMWARE_REVISION',
-        firmwareRevision,
-        gattFirmware: gattFirmware || undefined,
+        infoType: infoTypeName,
+        value: printableText,
+        rawHex: rawBuffer.toString('hex'),
         readOnly: true,
       };
-      console.log(`[Manager] Firmware revision for ${address}: ${firmwareRevision}`);
-      this.emit('firmwareInfoRead', lock, info);
+      console.log(`[Manager] ${infoTypeName} for ${address}: ${printableText || info.rawHex}`);
+      this.emit('deviceInfoRead', lock, info);
       return info;
     } catch (error) {
-      console.error(`[Manager] Failed reading firmware revision for ${address}:`, error);
+      console.error(`[Manager] Failed reading ${infoTypeName} for ${address}:`, error);
     } finally {
       this.firmwareReadReservations.delete(address);
     }
     return false;
   }
 
+  /** Read only the firmware revision without a metadata refresh. */
+  async getFirmwareInfo(address) {
+    const info = await this.getDeviceInfo(address, "FIRMWARE_REVISION");
+    if (info === false || !info.value) return false;
+    const lock = this.pairedLocks.get(address);
+    const firmwareInfo = {
+      ...info,
+      firmwareRevision: info.value,
+      gattFirmware: typeof lock?.getFirmware === 'function'
+        ? String(lock.getFirmware() ?? '').trim() || undefined
+        : undefined,
+    };
+    this.emit('firmwareInfoRead', lock, firmwareInfo);
+    return firmwareInfo;
+  }
+
   async syncLockTime(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -537,11 +584,12 @@ class Manager extends EventEmitter {
       if (!lock.hasPassCode()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
         const res = await lock.addPassCode(type, passCode, startDate, endDate);
+        if (res) await store.invalidateCredentialList(address, "passcodes");
         return res;
       } catch (error) {
         console.error(error);
@@ -556,11 +604,12 @@ class Manager extends EventEmitter {
       if (!lock.hasPassCode()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
         const res = await lock.updatePassCode(type, oldPasscode, newPasscode, startDate, endDate);
+        if (res) await store.invalidateCredentialList(address, "passcodes");
         return res;
       } catch (error) {
         console.error(error);
@@ -575,12 +624,28 @@ class Manager extends EventEmitter {
       if (!lock.hasPassCode()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
         const res = await lock.deletePassCode(type, passCode);
+        if (res) await store.invalidateCredentialList(address, "passcodes");
         return res;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return false;
+  }
+
+  async clearPasscodes(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined" && lock.hasPassCode()) {
+      if (!(await this._connectLock(lock, false))) return false;
+      try {
+        const result = await lock.clearPassCodes();
+        if (result) await store.setCredentialList(address, "passcodes", []);
+        return result;
       } catch (error) {
         console.error(error);
       }
@@ -600,7 +665,7 @@ class Manager extends EventEmitter {
       if (!lock.hasPassCode()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -616,18 +681,19 @@ class Manager extends EventEmitter {
     return false;
   }
 
-  async addCard(address, startDate, endDate, alias) {
+  async addCard(address, startDate, endDate, alias, cardNumber) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
       if (!lock.hasICCard()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
-        const card = await lock.addICCard(startDate, endDate);
+        const card = await lock.addICCard(startDate, endDate, cardNumber);
         store.setCardAlias(card, alias);
+        if (card) await store.invalidateCredentialList(address, "cards");
         return card;
       } catch (error) {
         console.error(error);
@@ -642,12 +708,13 @@ class Manager extends EventEmitter {
       if (!lock.hasICCard()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
         const result = await lock.updateICCard(card, startDate, endDate);
         store.setCardAlias(card, alias);
+        if (result) await store.invalidateCredentialList(address, "cards");
         return result;
       } catch (error) {
         console.error(error);
@@ -662,12 +729,30 @@ class Manager extends EventEmitter {
       if (!lock.hasICCard()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
         const result = await lock.deleteICCard(card);
         store.deleteCardAlias(card);
+        if (result) await store.invalidateCredentialList(address, "cards");
+        return result;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return false;
+  }
+
+  async clearCards(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined" && lock.hasICCard()) {
+      if (!(await this._connectLock(lock, false))) return false;
+      try {
+        const result = await lock.clearICCards();
+        if (result) {
+          await store.setCredentialList(address, "cards", []);
+        }
         return result;
       } catch (error) {
         console.error(error);
@@ -688,7 +773,7 @@ class Manager extends EventEmitter {
       if (!lock.hasICCard()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -715,12 +800,13 @@ class Manager extends EventEmitter {
       if (!lock.hasFingerprint()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
         const finger = await lock.addFingerprint(startDate, endDate);
         store.setFingerAlias(finger, alias);
+        if (finger) await store.invalidateCredentialList(address, "fingers");
         return finger;
       } catch (error) {
         console.error(error);
@@ -735,12 +821,13 @@ class Manager extends EventEmitter {
       if (!lock.hasFingerprint()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
         const result = await lock.updateFingerprint(finger, startDate, endDate);
         store.setFingerAlias(finger, alias);
+        if (result) await store.invalidateCredentialList(address, "fingers");
         return result;
       } catch (error) {
         console.error(error);
@@ -755,12 +842,30 @@ class Manager extends EventEmitter {
       if (!lock.hasFingerprint()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
         const result = await lock.deleteFingerprint(finger);
         store.deleteFingerAlias(finger);
+        if (result) await store.invalidateCredentialList(address, "fingers");
+        return result;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return false;
+  }
+
+  async clearFingers(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined" && lock.hasFingerprint()) {
+      if (!(await this._connectLock(lock, false))) return false;
+      try {
+        const result = await lock.clearFingerprints();
+        if (result) {
+          await store.setCredentialList(address, "fingers", []);
+        }
         return result;
       } catch (error) {
         console.error(error);
@@ -781,7 +886,7 @@ class Manager extends EventEmitter {
       if (!lock.hasFingerprint()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -808,7 +913,7 @@ class Manager extends EventEmitter {
       if (!lock.hasLockSound()) {
         return false;
       }
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -819,6 +924,93 @@ class Manager extends EventEmitter {
       } catch (error) {
         console.error(error);
       }
+    }
+    return false;
+  }
+
+  async getAudio(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock != "undefined") {
+      if (!lock.hasLockSound() || !(await this._connectLock(lock, false))) {
+        return false;
+      }
+      try {
+        return await lock.getLockSound(true);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    return false;
+  }
+
+  async getPassageMode(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    try {
+      return await lock.getPassageMode();
+    } catch (error) {
+      console.error(error);
+    }
+    return false;
+  }
+
+  async setPassageMode(address, data) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    try {
+      return await lock.setPassageMode(data);
+    } catch (error) {
+      console.error(error);
+    }
+    return false;
+  }
+
+  async deletePassageMode(address, data) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    try {
+      return await lock.deletePassageMode(data);
+    } catch (error) {
+      console.error(error);
+    }
+    return false;
+  }
+
+  async clearPassageMode(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    try {
+      return await lock.clearPassageMode();
+    } catch (error) {
+      console.error(error);
+    }
+    return false;
+  }
+
+  async getRemoteUnlock(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    try {
+      const value = await lock.setRemoteUnlock();
+      if (typeof value == "undefined") return false;
+      return { value, enabled: value === ConfigRemoteUnlock.OP_OPEN };
+    } catch (error) {
+      console.error(error);
+    }
+    return false;
+  }
+
+  async setRemoteUnlock(address, enabled) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    try {
+      const value = await lock.setRemoteUnlock(
+        enabled ? ConfigRemoteUnlock.OP_OPEN : ConfigRemoteUnlock.OP_CLOSE,
+      );
+      if (typeof value == "undefined") return false;
+      return { value, enabled: value === ConfigRemoteUnlock.OP_OPEN };
+    } catch (error) {
+      console.error(error);
     }
     return false;
   }
@@ -854,6 +1046,16 @@ class Manager extends EventEmitter {
     return true;
   }
 
+  getProactiveLogFetching(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock?.hasProactiveLogFetching === "function") {
+      return lock.hasProactiveLogFetching();
+    }
+    const stored = store.getLockData().find(item => item.address == address);
+    if (!stored) return false;
+    return stored?.proactiveLogs !== false;
+  }
+
   async getOperationLog(address, reload) {
     const lock = this.pairedLocks.get(address);
     if (typeof reload == "undefined") {
@@ -866,7 +1068,7 @@ class Manager extends EventEmitter {
       }
     }
     if (typeof lock != "undefined") {
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -915,12 +1117,13 @@ class Manager extends EventEmitter {
   async resetLock(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!(await this._connectLock(lock))) {
+      if (!(await this._connectLock(lock, false))) {
         return false;
       }
       try {
         const res = await lock.resetLock();
         if (res) {
+          if (lock.isConnected()) await lock.disconnect();
           lock.removeAllListeners();
           this.pairedLocks.delete(address);
           this.emit("lockListChanged");
@@ -1037,7 +1240,12 @@ class Manager extends EventEmitter {
       }
 
       try {
+        const commandStartedAt = Date.now();
         const result = await operationFn();
+        console.log(
+          `[Timing] ${address} ${operationName} authenticated command phase `
+          + `${Date.now() - commandStartedAt}ms`,
+        );
         if (result !== false || lock.isConnected()) {
           console.log(`[Manager] ${operationName} command completed with result: ${String(result)} after ${Date.now() - operationStartedAt}ms`);
           return result;
@@ -1045,6 +1253,16 @@ class Manager extends EventEmitter {
         console.warn(`Lock disconnected during ${operationName}; retrying (${attempt}/${maxRetries})`);
       } catch (error) {
         console.error(`Error during ${operationName}:`, error);
+        if (process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy') {
+          try {
+            const cleared = await refreshDbusDeviceCache(lock);
+            if (cleared) {
+              console.warn(`[Bluetooth][ESPHome] Cleared cached GATT data before ${operationName} retry`);
+            }
+          } catch (cacheError) {
+            console.warn(`[Bluetooth][ESPHome] Could not clear cached GATT data: ${cacheError.message || cacheError}`);
+          }
+        }
         console.warn(`Resetting the BLE connection before retry ${attempt}/${maxRetries}`);
       }
 

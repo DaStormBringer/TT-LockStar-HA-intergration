@@ -132,6 +132,20 @@ class WsApi {
     this.ws.send(message.toJSON());
   }
 
+  async sendCapabilities(capabilities) {
+    const message = new Message();
+    message.setType("capabilities");
+    message.setData({ commands: capabilities });
+    this.ws.send(message.toJSON());
+  }
+
+  async sendCommandResult(result) {
+    const message = new Message();
+    message.setType("command");
+    message.setData(result);
+    this.ws.send(message.toJSON());
+  }
+
   async sendError(error, originalMessage) {
     const message = new Message();
     message.setType("error");

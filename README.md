@@ -15,7 +15,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.47`
+- Add-on version: `0.1.0-alpha.48`
 - Home Assistant stage: `experimental`
 - Development branch: `main`
 - Target: Home Assistant on Linux
@@ -23,7 +23,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
-- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ also has one physically verified round trip without an add-on restart: unlock completed in 4.32 seconds; the immediate lock used its bounded second attempt and completed in 9.17 seconds. The user confirmed both bolt movements at the door. This is promising single-device evidence, not unattended-use qualification.
+- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ has one physically verified round trip without an add-on restart. ESPHome through the dedicated Craft proxy has also completed a sleeping-keypad alpha.47 round trip: 7.574-second unlock and 5.569-second lock, both physically confirmed. These are promising single-device results, not unattended-use qualification.
 - Production readiness: **not ready**
 
 Compatibility is claimed only for the user's **M302** lock running firmware **6.4.43.24052101**. That value was read from this physical lock on 2026-07-13 through the dedicated read-only `COMM_READ_DEVICE_INFO` request using the Craft ESPHome proxy. No other lock model or M302 firmware is claimed as tested.
@@ -49,6 +49,7 @@ Do not reset, unpair, or initialize an existing production lock until its curren
 ## Features
 
 - Dedicated read-only firmware-revision request using `COMM_READ_DEVICE_INFO` / `FIRMWARE_REVISION`
+- Capability-discoverable WebSocket command API covering the pinned SDK's supported high-level operations
 - Local lock and unlock commands
 - Multiple-lock discovery and management
 - PIN, IC card, and fingerprint management
@@ -60,10 +61,12 @@ Do not reset, unpair, or initialize an existing production lock until its curren
 - BLE connection serialization and retry handling
 - Home Assistant Ingress interface
 
+The generic command API, its exact-confirmation rules, and the intentionally excluded low-level SDK internals are documented in [API_COMMANDS.md](tt-lockstar-ha-intergration/API_COMMANDS.md).
+
 ## Requirements
 
 - Home Assistant OS or a supervised Linux installation capable of running local add-ons
-- Direct Bluetooth adapter visible to the Home Assistant host
+- Direct Bluetooth adapter visible to the Home Assistant host, or a local ESPHome proxy configured for active connections and remote GATT caching
 - Host networking and Bluetooth permissions supplied by the add-on configuration; host D-Bus is also required for the experimental D-Bus transport
 - MQTT broker for Home Assistant discovery, state reporting, and control
 - A manual means of entry during every test
@@ -104,7 +107,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.47 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.48 \
   ./tt-lockstar-ha-intergration
 ```
 
@@ -118,6 +121,7 @@ Building an image does not validate Bluetooth behavior. Final testing must occur
 - Do not expose the add-on API or Ingress service directly to the internet.
 - Native Bluetooth behavior depends on adapter hardware, driver support, signal quality, D-Bus, and host networking.
 - Raw HCI remains the default and the native `bluez` option remains available. Native BlueZ removes only the target's host-unpaired cache after disconnect so each wake can provide a fresh connection object; host-paired devices are preserved. It also keeps discovery active for command connections and shortens only the safely bounded native retry path. These latency changes still require supervised physical validation.
+- Alpha.48 reuses an ESPHome GATT service/MTU cache after the first successful discovery and automatically retries uncached after a cached failure. The optimization does not bypass TTLock authentication or response checks and remains pending supervised timing validation.
 - The image installs both transports, compiles the raw-HCI native binding, explicitly builds the pinned TTLock SDK commit, and then runs the fail-closed patch step.
 - `npm audit --omit=dev` reports 7 moderate, 7 high, and 2 critical findings. Most high/critical findings are inherited through the legacy raw-HCI build/install dependency chain. There is no safe automatic upgrade for the pinned runtime; keep the add-on local-only and do not use `npm audit fix --force`.
 - Generated frontend assets are committed because the Home Assistant add-on image copies the prebuilt interface.

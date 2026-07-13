@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.48] - 2026-07-13
+
+- Add a capability-discoverable WebSocket command API covering the complete supported high-level operation surface of the pinned TTLock SDK: state evidence, device information, time, auto-lock, audio, passage mode, remote-unlock configuration, credentials, logs, pairing, reset, and physical lock/unlock.
+- Require an exact command-name and lock-address confirmation for actuator, security-sensitive, and destructive generic commands. Preserve the existing frontend WebSocket messages for compatibility.
+- Use command-only BLE sessions for individual reads, settings, credentials, and log operations instead of performing a full metadata refresh first.
+- Cache a successfully discovered ESPHome GATT service table and MTU within the bridge process, reuse ESPHome's cached-connect mode on later sessions, and invalidate/retry uncached if a cached connection or handle fails.
+- Add authenticated-command phase timing without skipping TTLock authentication, response validation, notification registration, or physical-state verification.
+- Pass 82 JavaScript tests and 7 ESPHome bridge tests. The GATT-cache latency change remains pending supervised measurement on the physical M302.
+
 ## [0.1.0-alpha.47] - 2026-07-13
 
 - In direct ESPHome advertisement mode, discover paired locks without automatically consuming their first connectable wake for a full metadata refresh.

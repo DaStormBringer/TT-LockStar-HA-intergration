@@ -6,6 +6,7 @@ const manager = require("../src/manager");
 const store = require('../src/store');
 const Message = require("./Message");
 const WsApi = require("./WsApi");
+const CommandApi = require("./CommandApi");
 const { fetchLockData } = require('../src/ttlockCloudApi');
 const {
   convertCloudLockData,
@@ -14,6 +15,7 @@ const {
 } = require('../src/cloudLockData');
 
 module.exports = async (server) => {
+  const commandApi = new CommandApi(manager);
   const wss = new WebSocket.Server({
     server: server,
     path: "/api"
@@ -49,6 +51,19 @@ module.exports = async (server) => {
 
           case "status": // send status
             sendStatusUpdate();
+            break;
+
+          case "capabilities":
+            api.sendCapabilities(commandApi.getCapabilities());
+            break;
+
+          case "command":
+            try {
+              api.sendCommandResult(await commandApi.execute(msg.data));
+            } catch (error) {
+              console.error("Command API error:", error);
+              api.sendError(error.message, msg);
+            }
             break;
 
           case "scan": // start scanning

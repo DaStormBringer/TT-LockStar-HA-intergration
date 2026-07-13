@@ -426,7 +426,11 @@ class EsphomeProxyDevice extends EventEmitter {
       this.state = 'connected';
       this.mtu = Math.max(20, Number(result?.mtu) || 20);
       this.proxyName = result?.proxy;
-      console.log(`[Bluetooth][ESPHome] Connected ${this.address} through ${this.proxyName || 'unknown proxy'} (MTU ${this.mtu})`);
+      this.gattCacheHit = result?.cached_gatt === true;
+      console.log(
+        `[Bluetooth][ESPHome] Connected ${this.address} through ${this.proxyName || 'unknown proxy'} `
+        + `(MTU ${this.mtu}, GATT cache ${this.gattCacheHit ? 'hit' : 'miss'})`,
+      );
       this.emit('connected');
       return true;
     } catch (error) {
