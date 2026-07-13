@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.24] - 2026-07-12
+
+- Record that alpha.23 safely refreshed only the target's unpaired BlueZ cache and wrote no command when the lock did not rediscover during either freshness window.
+- Record that waking the keypad produced a live advertisement at approximately -76 dB, but the manual delay before the test exceeded the former one-second freshness limit.
+- Wait up to 15 seconds for a keypad wake advertisement before refreshing the target cache.
+- Accept an advertisement up to 10 seconds old so a freshly awakened lock remains eligible while the command begins connecting.
+
 ## [0.1.0-alpha.23] - 2026-07-12
 
 - Record that alpha.22 still received no live property update from the lock and correctly wrote no command during either freshness window.
