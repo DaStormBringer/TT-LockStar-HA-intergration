@@ -167,7 +167,7 @@ function patchDbusCommandPacing(source) {
             if (["dbus", "bluez"].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT)) {
                 const fragmentNumber = Math.floor(index / MTU) + 1;
                 const fragmentCount = Math.ceil(data.length / MTU);
-                console.log(\`[Bluetooth][D-Bus] command fragment \${fragmentNumber}/\${fragmentCount} accepted (\${fragment.length} bytes)\`);
+                console.log(\`[Bluetooth][BlueZ] command fragment \${fragmentNumber}/\${fragmentCount} accepted (\${fragment.length} bytes)\`);
                 if (index + MTU < data.length) {
                     await (0, timingUtil_1.sleep)(20);
                 }
