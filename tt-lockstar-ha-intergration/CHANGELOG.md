@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.53] - 2026-07-13
+
+- Preserve the evidence-backed lock entity while separately decoding the passive BLE `isUnlock` and `hasEvents` advertisement bits.
+- Expose an experimental `Advertised Lock State` diagnostic through MQTT discovery, WebSocket lock status, and read-only `lock.status.get` evidence. A clear bit is labeled `IDLE_NO_UNLOCK_SIGNAL`, never `LOCKED`.
+- Keep advertisement observations process-local, timestamped, explicitly unconfirmed, and rate-limit unchanged MQTT/WebSocket updates to once every 30 seconds while publishing semantic changes immediately.
+- Pass 98 JavaScript tests and 8 ESPHome bridge tests in the built `amd64` image; verify add-on 0.1.0-alpha.53, SDK 0.3.34, and 41 exposed commands.
+
 ## [0.1.0-alpha.52] - 2026-07-13
 
 - Give only `lock.connection.prepare` up to 60 seconds to observe a qualifying sleeping-lock advertisement before it opens BLE; normal physical command advertisement and connection limits remain unchanged.

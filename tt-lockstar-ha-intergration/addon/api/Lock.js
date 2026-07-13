@@ -2,6 +2,7 @@
 
 const { AudioManage } = require('ttlock-sdk-js/dist/constant/AudioManage');
 const store = require('../src/store');
+const { getAdvertisementState } = require('../src/advertisementState');
 
 class Lock {
   /** @type {string} MAC address */
@@ -36,6 +37,16 @@ class Lock {
   proactiveLogs;
   /** @type {'OPEN'|'CLOSED'|undefined} Magnetic door-contact state */
   door;
+  /** @type {'UNKNOWN'|'UNLOCK_SIGNAL'|'IDLE_NO_UNLOCK_SIGNAL'} Passive BLE diagnostic */
+  advertisedLockState;
+  /** @type {boolean|null} Raw SDK advertisement isUnlock bit */
+  advertisedIsUnlock;
+  /** @type {string|null} Time the passive BLE advertisement was observed */
+  advertisedAt;
+  /** @type {boolean|null} Raw SDK advertisement hasEvents bit */
+  advertisedHasEvents;
+  /** @type {false} Advertisement telemetry never confirms physical bolt state */
+  advertisedConfirmed;
 
   /**
    * 
@@ -64,6 +75,12 @@ class Lock {
     lock.hasAudio = lockObject.hasLockSound();
     lock.proactiveLogs = lockObject.hasProactiveLogFetching();
     lock.door = store.getDoorState(lock.address);
+    const advertisement = getAdvertisementState(lock.address);
+    lock.advertisedLockState = advertisement.state;
+    lock.advertisedIsUnlock = advertisement.isUnlock;
+    lock.advertisedAt = advertisement.observedAt;
+    lock.advertisedHasEvents = advertisement.hasEvents;
+    lock.advertisedConfirmed = false;
 
     return lock;
   }

@@ -18,6 +18,10 @@ const TTLockClient = NATIVE_TRANSPORTS.includes(process.env.TTLOCK_BLUETOOTH_TRA
   ? null
   : require('ttlock-sdk-js/dist/TTLockClient').TTLockClient;
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
+const {
+  getAdvertisementState,
+  observeLockAdvertisement,
+} = require('./advertisementState');
 const PreparedConnectionRegistry = require('./preparedConnectionRegistry');
 const {
   connectWithPolicy,
@@ -150,6 +154,7 @@ async function sleep(ms) {
  * - lockUnlock - a lock was unlocked
  * - lockStateUnknown - operation evidence cannot confirm the deadbolt position
  * - doorStateUpdated - the magnetic door contact changed
+ * - lockAdvertisementStateUpdated - passive, unconfirmed BLE advertisement telemetry changed
  * - scanStart - scanning has started
  * - scanStop - scanning has stopped
  */
@@ -219,10 +224,7 @@ class Manager extends EventEmitter {
           this.client.startMonitor();
         });
         this.client.on("foundLock", this._onFoundLock.bind(this));
-        this.client.on('lockAdvertisement', lock => markLockAndStoredAdvertisement(
-          lock,
-          this.pairedLocks.get(lock.getAddress()),
-        ));
+        this.client.on('lockAdvertisement', this._onLockAdvertisement.bind(this));
         this.client.on("scanStart", this._onScanStarted.bind(this));
         this.client.on("scanStop", this._onScanStopped.bind(this));
         this.client.on("monitorStart", () => console.log("Monitor started"));
@@ -491,6 +493,7 @@ class Manager extends EventEmitter {
       status,
       statusName: LockedStatus[status] || "UNKNOWN",
       doorState: store.getDoorState(address),
+      advertisement: getAdvertisementState(address),
       liveCommandSent: false,
       source: status === LockedStatus.UNKNOWN
         ? "unknown"
@@ -1408,6 +1411,10 @@ class Manager extends EventEmitter {
         // add it to the list of known locks and connect it
         console.log("Discovered paired lock:", lock.getAddress());
         this.pairedLocks.set(lock.getAddress(), lock);
+        const advertisedState = getAdvertisementState(lock.getAddress());
+        if (advertisedState.state !== 'UNKNOWN') {
+          this.emit('lockAdvertisementStateUpdated', lock, advertisedState);
+        }
         if (lock.lockedStatus === LockedStatus.UNKNOWN) {
           this.emit('lockStateUnknown', lock);
         }
@@ -1461,6 +1468,24 @@ class Manager extends EventEmitter {
 
     if (listChanged) {
       this.emit("lockListChanged");
+    }
+  }
+
+  _onLockAdvertisement(lock) {
+    const address = lock.getAddress();
+    const storedLock = this.pairedLocks.get(address);
+    markLockAndStoredAdvertisement(lock, storedLock);
+    const result = observeLockAdvertisement(lock);
+    if (!result.observation || !storedLock) return;
+
+    if (result.changed) {
+      console.log(
+        `[Advertisement] ${address} reported ${result.observation.state}; `
+        + 'diagnostic only, not confirmed deadbolt state',
+      );
+    }
+    if (result.publish) {
+      this.emit('lockAdvertisementStateUpdated', storedLock, result.observation);
     }
   }
 

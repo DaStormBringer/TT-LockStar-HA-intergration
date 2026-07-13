@@ -15,7 +15,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.52`
+- Add-on version: `0.1.0-alpha.53`
 - Home Assistant stage: `experimental`
 - Development branch: `main`
 - Target: Home Assistant on Linux
@@ -57,7 +57,7 @@ Do not reset, unpair, or initialize an existing production lock until its curren
 - Cached credentials and operation logs with manual refresh
 - Optional automatic operation-log fetching
 - Lock clock read and synchronization controls
-- Home Assistant MQTT discovery for lock state, battery, signal level, and lock time
+- Home Assistant MQTT discovery for confirmed lock state, passive advertised-state diagnostics, battery, signal level, and lock time
 - BLE connection serialization and retry handling
 - Bounded read-only connection preparation for latency-sensitive supervised workflows
 - Home Assistant Ingress interface
@@ -108,7 +108,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.52 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.53 \
   ./tt-lockstar-ha-intergration
 ```
 
@@ -117,6 +117,7 @@ Building an image does not validate Bluetooth behavior. Final testing must occur
 ## Known risks and limitations
 
 - The project is unofficial and is not affiliated with TTLock or Home Assistant.
+- The experimental `Advertised Lock State` sensor exposes the SDK's passive `isUnlock` advertisement bit. `UNLOCK_SIGNAL` is an observed bit, while `IDLE_NO_UNLOCK_SIGNAL` means only that the bit was clear; it is **not** confirmation that the physical bolt is locked. Automations must use evidence-backed confirmed state, not this diagnostic sensor.
 - There is no upstream automated test suite.
 - Lock pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in backups. Protect both.
 - Do not expose the add-on API or Ingress service directly to the internet.

@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.52`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.53`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -21,6 +21,7 @@ Current version: `0.1.0-alpha.52`. The project uses Semantic Versioning and will
 - The add-on explicitly requests active scan mode; proxies must support scanner state/mode control, active connections, and remote GATT caching.
 - May contend with the TTLock app or G2 gateway when multiple systems contact the lock.
 - Magnetic door-contact state is not deadbolt position. The lock entity stays unknown when the newest operation does not explicitly confirm the bolt.
+- The diagnostic `Advertised Lock State` sensor is passive and experimental. `IDLE_NO_UNLOCK_SIGNAL` does not mean the bolt is confirmed locked and must not be used to authorize an automation.
 - Must not be used as the only means of entering or securing the property.
 - Must not be connected to unattended auto-unlock automations during experimental testing.
 
@@ -57,6 +58,7 @@ Detailed per-release changes and supervised hardware-test results are maintained
 - Cached credentials and operation logs with manual refresh
 - Optional proactive operation-log fetching can update state after explicit manual lock/unlock events. It increases BLE traffic, and some firmware does not record auto-lock events, so it is disabled by default.
 - Separate MQTT door binary sensor derived from magnetic contact open/closed records.
+- Separate MQTT diagnostic sensor for the raw passive advertisement state, including observation time and `isUnlock`/`hasEvents` attributes; it never changes the confirmed lock entity.
 - Lock clock read and synchronization controls
 - MQTT discovery for lock state, battery, signal strength, and lock time
 - BLE connection serialization and retry handling

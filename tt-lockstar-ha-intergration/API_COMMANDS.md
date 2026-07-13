@@ -154,7 +154,7 @@ The following are intentionally not exposed:
 
 - Protected SDK protocol internals, AES/admin-key reads, raw command construction, and arbitrary GATT writes.
 - Firmware update. `FIRMWARE_REVISION` is read-only device information, not OTA support.
-- A direct `getLockStatus` query on the tested room deadbolt. The pinned SDK's command represents a bicycle-lock status path and is not valid deadbolt evidence for this M302. `lock.status.get` therefore returns only the last state confirmed by a successful local command or explicit operation-log record, plus the separately tracked magnetic door contact.
+- A direct `getLockStatus` query on the tested room deadbolt. The pinned SDK's command represents a bicycle-lock status path and is not valid deadbolt evidence for this M302. `lock.status.get` therefore returns the last state confirmed by a successful local command or explicit operation-log record, the separately tracked magnetic door contact, and an `advertisement` diagnostic object. That object is always `confirmed: false`; `IDLE_NO_UNLOCK_SIGNAL` is never equivalent to confirmed `LOCKED`.
 - Automatic retries for credential, passage-mode, remote-unlock, settings, clear-all, or reset mutations. Repeating those operations could create duplicate or destructive effects.
 
 ESPHome GATT caching stores only the discovered service table and MTU within the running bridge process. Alpha.50 bounds a failed cached connection at four seconds, preserves the table on connection-only timeouts, and still permits explicit invalidation for GATT handle failures. It never caches TTLock authentication challenges. Alpha.51's prepared session is a live, automatically expiring BLE connection rather than cached authentication data.

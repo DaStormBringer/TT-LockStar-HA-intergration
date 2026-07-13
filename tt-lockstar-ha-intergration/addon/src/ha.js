@@ -4,6 +4,7 @@ const mqtt = require('async-mqtt');
 const manager = require('./manager');
 const store = require('./store');
 const { LockedStatus } = require('ttlock-sdk-js/dist/constant/LockedStatus');
+const { getAdvertisementState } = require('./advertisementState');
 
 class HomeAssistant {
   /**
@@ -33,6 +34,7 @@ class HomeAssistant {
     manager.on("doorStateUpdated", this._onDoorStateUpdated.bind(this));
     manager.on("lockBatteryUpdated", this._onLockBatteryUpdated.bind(this));
     manager.on("lockTimeUpdated", this._onLockTimeUpdated.bind(this));
+    manager.on("lockAdvertisementStateUpdated", this._onLockAdvertisementStateUpdated.bind(this));
   }
 
   async connect() {
@@ -146,6 +148,27 @@ class HomeAssistant {
       }
       res = await this.client.publish(configRssiTopic, JSON.stringify(rssiPayload), { retain: true });
 
+      // setup a diagnostic sensor for the raw advertisement isUnlock bit.
+      // IDLE_NO_UNLOCK_SIGNAL is intentionally not presented as confirmed LOCKED.
+      const configAdvertisedStateTopic = this.discovery_prefix
+        + "/sensor/" + id + "/advertised_lock_state/config";
+      const advertisedStatePayload = {
+        unique_id: "ttlock_" + id + "_advertised_lock_state",
+        name: name + " Advertised Lock State",
+        device: device,
+        entity_category: "diagnostic",
+        icon: "mdi:lock-question",
+        state_topic: "ttlock/" + id,
+        value_template: "{{ value_json.advertised_lock_state }}",
+        json_attributes_topic: "ttlock/" + id,
+        json_attributes_template: "{{ {'advertised_is_unlock': value_json.advertised_is_unlock, 'advertised_at': value_json.advertised_at, 'advertised_has_events': value_json.advertised_has_events, 'advertised_confirmed': false} | tojson }}",
+      };
+      res = await this.client.publish(
+        configAdvertisedStateTopic,
+        JSON.stringify(advertisedStatePayload),
+        { retain: true },
+      );
+
       // setup magnetic door-contact sensor separately from deadbolt state
       const configDoorTopic = this.discovery_prefix + "/binary_sensor/" + id + "/door/config";
       const doorPayload = {
@@ -211,12 +234,18 @@ class HomeAssistant {
       const id = this.getLockId(lock);
       const stateTopic = "ttlock/" + id;
       const lockedStatus = await lock.getLockStatus();
+      const advertisement = getAdvertisementState(lock.getAddress());
       let statePayload = {
         battery: lock.getBattery(),
         rssi: lock.getRssi(),
         state: "UNKNOWN",
         availability: lockedStatus == LockedStatus.UNKNOWN ? "offline" : "online",
         door: store.getDoorState(lock.getAddress()) || "UNKNOWN",
+        advertised_lock_state: advertisement.state,
+        advertised_is_unlock: advertisement.isUnlock,
+        advertised_at: advertisement.observedAt,
+        advertised_has_events: advertisement.hasEvents,
+        advertised_confirmed: false,
       }
       if (this.lockTimes.has(id)) {
         statePayload.lock_time = this.lockTimes.get(id);
@@ -279,6 +308,11 @@ class HomeAssistant {
    * @param {import('ttlock-sdk-js').TTLock} lock
    */
   async _onLockBatteryUpdated(lock) {
+    await this.updateLockState(lock);
+  }
+
+  async _onLockAdvertisementStateUpdated(lock) {
+    await this.configureLock(lock);
     await this.updateLockState(lock);
   }
 

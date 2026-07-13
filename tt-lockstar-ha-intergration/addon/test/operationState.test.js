@@ -136,6 +136,19 @@ test('publishes unknown deadbolt state before a BLE connection succeeds', () => 
 
   assert.match(
     managerSource,
-    /this\.pairedLocks\.set\(lock\.getAddress\(\), lock\);\s+if \(lock\.lockedStatus === LockedStatus\.UNKNOWN\) \{\s+this\.emit\('lockStateUnknown', lock\);/,
+    /this\.pairedLocks\.set\(lock\.getAddress\(\), lock\);[\s\S]*?if \(lock\.lockedStatus === LockedStatus\.UNKNOWN\) \{\s+this\.emit\('lockStateUnknown', lock\);/,
   );
+});
+
+test('publishes advertisement state as a separate experimental diagnostic', () => {
+  const haSource = fs.readFileSync(path.join(__dirname, '../src/ha.js'), 'utf8');
+  const lockApiSource = fs.readFileSync(path.join(__dirname, '../api/Lock.js'), 'utf8');
+
+  assert.match(haSource, /\/advertised_lock_state\/config/);
+  assert.match(haSource, /entity_category: "diagnostic"/);
+  assert.match(haSource, /advertised_lock_state: advertisement\.state/);
+  assert.match(haSource, /advertised_confirmed: false/);
+  assert.match(lockApiSource, /advertisedLockState = advertisement\.state/);
+  assert.match(lockApiSource, /advertisedIsUnlock = advertisement\.isUnlock/);
+  assert.match(lockApiSource, /advertisedConfirmed = false/);
 });
