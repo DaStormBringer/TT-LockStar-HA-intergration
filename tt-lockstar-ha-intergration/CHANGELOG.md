@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0-alpha.45] - 2026-07-13
+
+- Reserve a paired lock while a read-only firmware request is armed so a queued startup metadata refresh cannot consume the next keypad wake.
+- Let the firmware request wait up to 60 seconds for a fresh lock advertisement before opening its command-only BLE connection.
+- Keep the route read-only: it sends only `COMM_READ_DEVICE_INFO` with `FIRMWARE_REVISION` and never sends lock, unlock, settings, time-sync, or firmware-update commands.
+
 ## [0.1.0-alpha.44] - 2026-07-13
 
 - Add a dedicated read-only `firmware` WebSocket request for paired locks.

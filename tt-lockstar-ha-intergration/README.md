@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.44`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.45`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -39,7 +39,7 @@ The merged `amd64` Alpine image builds successfully. The declared `aarch64` targ
 
 ### Tested compatibility scope
 
-Hardware compatibility is claimed only for the user's **M302** lock and the firmware currently installed on that device. The current SDK metadata reports that firmware value as `unknown`, so this README does not claim compatibility with any other M302 firmware or any other lock model. Replace `unknown` only after alpha.44's dedicated read-only firmware request returns the exact value from this physical lock; do not broaden this statement from a protocol-only or simulated test.
+Hardware compatibility is claimed only for the user's **M302** lock and the firmware currently installed on that device. The current SDK metadata reports that firmware value as `unknown`, so this README does not claim compatibility with any other M302 firmware or any other lock model. Replace `unknown` only after alpha.45's dedicated read-only firmware request returns the exact value from this physical lock; do not broaden this statement from a protocol-only or simulated test.
 
 Detailed per-release changes and supervised hardware-test results are maintained in [UPDATE_NOTES.md](UPDATE_NOTES.md). The shorter [CHANGELOG.md](CHANGELOG.md) remains the release-oriented summary.
 
@@ -73,7 +73,7 @@ Detailed per-release changes and supervised hardware-test results are maintained
 
 ### Read-only firmware request
 
-Send `{"type":"firmware","data":{"address":"DC:47:11:85:94:2F"}}` to the add-on's `/api` WebSocket. A successful response uses type `firmware` and includes `command: "COMM_READ_DEVICE_INFO"`, `infoType: "FIRMWARE_REVISION"`, the returned `firmwareRevision`, and `readOnly: true`. The add-on disconnects after the response. This route does not lock, unlock, change settings, synchronize time, or perform a firmware update.
+Send `{"type":"firmware","data":{"address":"DC:47:11:85:94:2F"}}` to the add-on's `/api` WebSocket before waking the keypad. The request reserves the lock from background metadata refreshes and waits up to 60 seconds for a fresh advertisement. A successful response uses type `firmware` and includes `command: "COMM_READ_DEVICE_INFO"`, `infoType: "FIRMWARE_REVISION"`, the returned `firmwareRevision`, and `readOnly: true`. The add-on disconnects after the response. This route does not lock, unlock, change settings, synchronize time, or perform a firmware update.
 
 ## Security and dependency notice
 

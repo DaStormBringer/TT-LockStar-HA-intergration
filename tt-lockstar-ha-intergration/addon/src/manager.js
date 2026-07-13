@@ -35,6 +35,7 @@ const DEADBOLT_LOCK_RECORD_TYPES = LogOperateCategory.LOCK.filter(
 const DEADBOLT_UNLOCK_RECORD_TYPES = LogOperateCategory.UNLOCK.filter(
   recordType => recordType !== LogOperate.DOOR_SENSOR_UNLOCK,
 );
+const FIRMWARE_READ_WAKE_WAIT_MS = 60000;
 
 function usesBluezDbus() {
   return ['dbus', 'bluez'].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT);
@@ -160,6 +161,8 @@ class Manager extends EventEmitter {
     this.newLocks = new Map();
     /** @type {Set<string>} Locks found during scan that we need to connect to at least once to get their information */
     this.connectQueue = new Set();
+    /** @type {Set<string>} Locks reserved for an explicitly armed read-only firmware request */
+    this.firmwareReadReservations = new Set();
     /** @type {'none'|'noble'} */
     this.gateway = 'none';
     this.gateway_host = "";
@@ -414,10 +417,38 @@ class Manager extends EventEmitter {
     if (typeof lock == "undefined") {
       return false;
     }
-    if (!(await this._connectLock(lock, false))) {
-      return false;
-    }
+    this.firmwareReadReservations.add(address);
     try {
+      // Let any startup metadata attempt drain before beginning the wake
+      // window. Reserving the address first prevents a queued refresh from
+      // consuming the next keypad advertisement.
+      while (this.lockMutexes.has(address)) {
+        console.log(`[Manager] Firmware read waiting for an existing ${address} connection to finish...`);
+        await this.lockMutexes.get(address).promise;
+      }
+      this.connectQueue.delete(address);
+
+      if (usesAdvertisementGatedTransport()) {
+        console.log(
+          `[Manager] Firmware read armed for ${address}; waiting up to `
+          + `${FIRMWARE_READ_WAKE_WAIT_MS}ms for a fresh advertisement`,
+        );
+        const advertisementAge = await waitForFreshLockAdvertisement(lock, {
+          freshnessMs: getCommandAdvertisementFreshnessMs(),
+          timeoutMs: FIRMWARE_READ_WAKE_WAIT_MS,
+        });
+        if (advertisementAge === false) {
+          throw new Error(
+            `[Bluetooth][${bluetoothTransportLabel()}] No fresh advertisement from ${address} `
+            + `within the ${FIRMWARE_READ_WAKE_WAIT_MS}ms firmware-read window`,
+          );
+        }
+        console.log(`[Manager] Firmware read received a ${advertisementAge}ms-old advertisement from ${address}`);
+      }
+
+      if (!(await this._connectLock(lock, false))) {
+        return false;
+      }
       const rawRevision = await lock.readDeviceInfoCommand(DeviceInfoEnum.FIRMWARE_REVISION);
       const firmwareRevision = Buffer.isBuffer(rawRevision)
         ? rawRevision.toString('utf8').replace(/\0+$/g, '').trim()
@@ -441,6 +472,8 @@ class Manager extends EventEmitter {
       return info;
     } catch (error) {
       console.error(`[Manager] Failed reading firmware revision for ${address}:`, error);
+    } finally {
+      this.firmwareReadReservations.delete(address);
     }
     return false;
   }
@@ -1029,6 +1062,10 @@ class Manager extends EventEmitter {
     console.log("BLE Scan stopped");
     console.log("Refreshing paired locks");
     for (let address of this.connectQueue) {
+      if (this.firmwareReadReservations.has(address)) {
+        console.log(`[Manager] Skipping queued metadata refresh for reserved firmware read: ${address}`);
+        continue;
+      }
       if (this.pairedLocks.has(address)) {
         let lock = this.pairedLocks.get(address);
         console.log("Auto connect to", address);
