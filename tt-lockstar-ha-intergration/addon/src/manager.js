@@ -19,6 +19,7 @@ const TTLockClient = NATIVE_TRANSPORTS.includes(process.env.TTLOCK_BLUETOOTH_TRA
   : require('ttlock-sdk-js/dist/TTLockClient').TTLockClient;
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
 const {
+  getAdvertisementHistory,
   getAdvertisementState,
   observeLockAdvertisement,
 } = require('./advertisementState');
@@ -494,6 +495,7 @@ class Manager extends EventEmitter {
       statusName: LockedStatus[status] || "UNKNOWN",
       doorState: store.getDoorState(address),
       advertisement: getAdvertisementState(address),
+      advertisementHistory: getAdvertisementHistory(address, 20),
       liveCommandSent: false,
       source: status === LockedStatus.UNKNOWN
         ? "unknown"
@@ -1478,7 +1480,7 @@ class Manager extends EventEmitter {
     const result = observeLockAdvertisement(lock);
     if (!result.observation || !storedLock) return;
 
-    if (result.changed) {
+    if (result.semanticChanged) {
       console.log(
         `[Advertisement] ${address} reported ${result.observation.state}; `
         + 'diagnostic only, not confirmed deadbolt state',

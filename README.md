@@ -15,7 +15,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.53`
+- Add-on version: `0.1.0-alpha.54`
 - Home Assistant stage: `experimental`
 - Development branch: `main`
 - Target: Home Assistant on Linux
@@ -25,6 +25,8 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 - SDK v0.3.34 compile and method inspection: successful
 - Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ has one physically verified round trip without an add-on restart. ESPHome through the dedicated Craft proxy completed physically confirmed commands through alpha.50. The alpha.50 unlock took 7.287 seconds: 5.584 seconds waiting for the sleeping lock's next advertisement, 1.100 seconds for a cached connection, and 601 milliseconds for the authenticated unlock. Alpha.52 lets the read-only prepared-session request wait up to 60 seconds for the sleeping lock before starting its short reusable lease; the feature remains pending successful live connection and physical timing validation.
 - Production readiness: **not ready**
+
+Development priority is core discovery, evidence-backed state, reliable lock/unlock, settings, PINs, and cards. Biometric fingerprint enrollment and management remain unvalidated and are intentionally last in the implementation and hardware-test order.
 
 Compatibility is claimed only for the user's **M302** lock running firmware **6.4.43.24052101**. That value was read from this physical lock on 2026-07-13 through the dedicated read-only `COMM_READ_DEVICE_INFO` request using the Craft ESPHome proxy. No other lock model or M302 firmware is claimed as tested.
 
@@ -108,7 +110,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.53 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.54 \
   ./tt-lockstar-ha-intergration
 ```
 
@@ -117,7 +119,7 @@ Building an image does not validate Bluetooth behavior. Final testing must occur
 ## Known risks and limitations
 
 - The project is unofficial and is not affiliated with TTLock or Home Assistant.
-- The experimental `Advertised Lock State` sensor exposes the SDK's passive `isUnlock` advertisement bit. `UNLOCK_SIGNAL` is an observed bit, while `IDLE_NO_UNLOCK_SIGNAL` means only that the bit was clear; it is **not** confirmation that the physical bolt is locked. Automations must use evidence-backed confirmed state, not this diagnostic sensor.
+- The experimental `Advertised Lock State` sensor exposes the SDK's passive `isUnlock` advertisement bit. A supervised manual test returned the same clear bit while the bolt was physically locked and unlocked, proving it is **not** a continuous bolt-position field. Automations must use evidence-backed confirmed state, not this diagnostic sensor or its raw-payload signature.
 - There is no upstream automated test suite.
 - Lock pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in backups. Protect both.
 - Do not expose the add-on API or Ingress service directly to the internet.

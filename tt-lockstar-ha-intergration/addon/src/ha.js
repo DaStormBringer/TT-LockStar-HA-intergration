@@ -161,7 +161,7 @@ class HomeAssistant {
         state_topic: "ttlock/" + id,
         value_template: "{{ value_json.advertised_lock_state }}",
         json_attributes_topic: "ttlock/" + id,
-        json_attributes_template: "{{ {'advertised_is_unlock': value_json.advertised_is_unlock, 'advertised_at': value_json.advertised_at, 'advertised_has_events': value_json.advertised_has_events, 'advertised_confirmed': false} | tojson }}",
+        json_attributes_template: "{{ {'advertised_is_unlock': value_json.advertised_is_unlock, 'advertised_at': value_json.advertised_at, 'advertised_has_events': value_json.advertised_has_events, 'advertised_confirmed': false, 'advertised_manufacturer_data_hex': value_json.advertised_manufacturer_data_hex, 'advertised_payload_signature': value_json.advertised_payload_signature} | tojson }}",
       };
       res = await this.client.publish(
         configAdvertisedStateTopic,
@@ -246,6 +246,8 @@ class HomeAssistant {
         advertised_at: advertisement.observedAt,
         advertised_has_events: advertisement.hasEvents,
         advertised_confirmed: false,
+        advertised_manufacturer_data_hex: advertisement.manufacturerDataHex,
+        advertised_payload_signature: advertisement.payloadSignature,
       }
       if (this.lockTimes.has(id)) {
         statePayload.lock_time = this.lockTimes.get(id);

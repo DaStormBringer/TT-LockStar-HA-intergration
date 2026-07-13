@@ -151,4 +151,6 @@ test('publishes advertisement state as a separate experimental diagnostic', () =
   assert.match(lockApiSource, /advertisedLockState = advertisement\.state/);
   assert.match(lockApiSource, /advertisedIsUnlock = advertisement\.isUnlock/);
   assert.match(lockApiSource, /advertisedConfirmed = false/);
+  assert.match(lockApiSource, /advertisedPayloadSignature = advertisement\.payloadSignature/);
+  assert.match(haSource, /advertised_payload_signature: advertisement\.payloadSignature/);
 });

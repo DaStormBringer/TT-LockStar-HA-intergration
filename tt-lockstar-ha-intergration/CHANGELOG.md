@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.54] - 2026-07-13
+
+- Record a manual locked-to-unlocked comparison in which the M302 advertised `isUnlock: false` and `hasEvents: false` in both physically verified positions, proving those bits are not continuous bolt-position evidence.
+- Capture a stable 16-character signature of normalized manufacturer and service-data payloads while retaining the raw bytes for read-only inspection.
+- Keep up to 50 unique payload observations in process memory and return the newest 20 from `lock.status.get`, without persisting them or changing confirmed lock state.
+- Add the current raw signature and manufacturer bytes to WebSocket/MQTT diagnostics, with the signature ordered last in the diagnostic attributes.
+- Pass 100 JavaScript tests and 8 ESPHome bridge tests in the built `amd64` image; verify add-on 0.1.0-alpha.54, SDK 0.3.34, and 41 exposed commands.
+
 ## [0.1.0-alpha.53] - 2026-07-13
 
 - Preserve the evidence-backed lock entity while separately decoding the passive BLE `isUnlock` and `hasEvents` advertisement bits.

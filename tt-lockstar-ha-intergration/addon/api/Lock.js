@@ -47,6 +47,10 @@ class Lock {
   advertisedHasEvents;
   /** @type {false} Advertisement telemetry never confirms physical bolt state */
   advertisedConfirmed;
+  /** @type {string|null} Normalized raw manufacturer bytes */
+  advertisedManufacturerDataHex;
+  /** @type {string|null} Short hash of raw manufacturer and service data */
+  advertisedPayloadSignature;
 
   /**
    * 
@@ -81,6 +85,8 @@ class Lock {
     lock.advertisedAt = advertisement.observedAt;
     lock.advertisedHasEvents = advertisement.hasEvents;
     lock.advertisedConfirmed = false;
+    lock.advertisedManufacturerDataHex = advertisement.manufacturerDataHex;
+    lock.advertisedPayloadSignature = advertisement.payloadSignature;
 
     return lock;
   }
