@@ -105,3 +105,18 @@ test('surfaces duplicate proxy advertisements to the freshness gate', () => {
   assert.equal(updates, 1);
   assert.equal(advertised, existing);
 });
+
+test('accepts an exact paired-lock MAC when the ESPHome advertisement omits service UUID 1910', () => {
+  const scanner = Object.create(require('../src/esphomeProxyTransport').EsphomeProxyScanner.prototype);
+  scanner.uuids = ['1910'];
+  scanner.setTargetAddresses(['DC:47:11:85:94:2F']);
+
+  assert.equal(scanner._matchesFilter({
+    address: 'DC:47:11:85:94:2F',
+    serviceUuids: [],
+  }), true);
+  assert.equal(scanner._matchesFilter({
+    address: 'AA:BB:CC:DD:EE:FF',
+    serviceUuids: [],
+  }), false);
+});

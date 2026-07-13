@@ -13,9 +13,9 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.32`
+- Add-on version: `0.1.0-alpha.33`
 - Home Assistant stage: `experimental`
-- Development branch: `codex/local-esphome-proxy-alpha32`
+- Development branch: `codex/esphome-paired-mac-alpha33`
 - Target: Home Assistant on Linux
 - Verified image: Home Assistant Alpine Linux, `amd64`
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
@@ -101,7 +101,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.32 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.33 \
   ./tt-lockstar-ha-intergration
 ```
 
