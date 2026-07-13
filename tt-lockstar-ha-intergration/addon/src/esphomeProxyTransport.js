@@ -251,6 +251,12 @@ class EsphomeProxyScanner extends EventEmitter {
       device.updateAdvertisement(values);
     }
     device.lastProxy = event.proxy;
+    if (this._matchesFilter(device)) {
+      console.log(
+        `[Bluetooth][ESPHome] Target advertisement ${device.address} via ${event.proxy || 'unknown proxy'} `
+        + `(RSSI ${device.rssi})`,
+      );
+    }
     if (this.scanning) this._emitDiscovery(device);
   }
 
@@ -326,6 +332,7 @@ class EsphomeProxyDevice extends EventEmitter {
       this.state = 'connected';
       this.mtu = Math.max(20, Number(result?.mtu) || 20);
       this.proxyName = result?.proxy;
+      console.log(`[Bluetooth][ESPHome] Connected ${this.address} through ${this.proxyName || 'unknown proxy'} (MTU ${this.mtu})`);
       this.emit('connected');
       return true;
     } catch (error) {

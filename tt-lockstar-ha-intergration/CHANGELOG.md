@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.32] - 2026-07-12
+
+- Explicitly request active scanning whenever the local ESPHome proxy bridge connects, so short M302 keypad-wake advertisements are less likely to be missed.
+- Require ESPHome scanner state/mode support in addition to active connections and remote GATT caching.
+- Log the proxy name and RSSI for matching TTLock advertisements, plus the selected proxy and MTU after a connection.
+- Document ESPHome's single Bluetooth API subscriber behavior: every configured proxy is dedicated to TT LockStar while the add-on owns its advertisement subscription.
+- Stop printing a misleading local `hci0` selection message when the ESPHome proxy transport is selected.
+
 ## [0.1.0-alpha.31] - 2026-07-12
 
 - Add a fully local ESPHome Bluetooth Proxy transport using the ESPHome native API; TTLock Cloud and the G2 gateway are not involved.
