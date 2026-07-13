@@ -61,6 +61,7 @@ test('connects, enumerates GATT, writes, and surfaces notifications through the 
         }],
       }];
     }
+    if (action === 'write_fragments') return payload.data.length;
     return true;
   };
   const scanner = { bridge, refreshDevice: async () => true };
@@ -84,6 +85,14 @@ test('connects, enumerates GATT, writes, and surfaces notifications through the 
   assert.equal(await characteristic.write(Buffer.from([1, 2, 3]), true), true);
   assert.equal(calls.at(-1).payload.data, '010203');
   assert.equal(calls.at(-1).payload.response, false);
+  assert.equal(await characteristic.writeFragments([
+    Buffer.alloc(20, 1),
+    Buffer.alloc(7, 2),
+  ], true, 20), true);
+  assert.equal(calls.at(-1).action, 'write_fragments');
+  assert.deepEqual(calls.at(-1).payload.data, ['01'.repeat(20), '02'.repeat(7)]);
+  assert.equal(calls.at(-1).payload.response, false);
+  assert.equal(calls.at(-1).payload.delay_ms, 20);
 
   let notification;
   characteristic.on('dataRead', data => { notification = data; });

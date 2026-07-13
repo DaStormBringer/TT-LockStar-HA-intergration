@@ -534,6 +534,24 @@ class EsphomeProxyCharacteristic extends EventEmitter {
     }
   }
 
+  async writeFragments(fragments, withoutResponse, delayMs = 20) {
+    if (!this.properties.includes('write') && !this.properties.includes('writeWithoutResponse')) return false;
+    this.device.checkBusy();
+    try {
+      const data = fragments.map(fragment => Buffer.from(fragment).toString('hex'));
+      const written = await this.device.scanner.bridge.request('write_fragments', {
+        address: this.device.address,
+        handle: this.handle,
+        data,
+        response: !withoutResponse,
+        delay_ms: delayMs,
+      });
+      return Number(written) === data.length;
+    } finally {
+      this.device.resetBusy();
+    }
+  }
+
   async subscribe() {
     if (!this.subscribed) {
       await this.device.scanner.bridge.request('subscribe', {

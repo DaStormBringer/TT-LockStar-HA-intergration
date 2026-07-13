@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from esphome_proxy_bridge import parse_raw_advertisement  # noqa: E402
+from esphome_proxy_bridge import Bridge, Proxy, mac_to_int, parse_raw_advertisement  # noqa: E402
 
 
 class RawAdvertisementTests(unittest.TestCase):
@@ -30,6 +30,33 @@ class RawAdvertisementTests(unittest.TestCase):
         self.assertIn("1910", result["service_uuids"])
         self.assertEqual(result["manufacturer_data"][0x0305].hex(), "023064b000f4f953652f94851147dc")
         self.assertEqual(result["service_data"], {})
+
+    def test_writes_command_fragments_in_one_ordered_bridge_request(self):
+        class FakeClient:
+            def __init__(self):
+                self.writes = []
+
+            async def bluetooth_gatt_write(self, address, handle, data, response):
+                self.writes.append((address, handle, bytes(data), response))
+
+        client = FakeClient()
+        proxy = Proxy("test:6053", "test", 6053, client=client, connected=True)
+        bridge = Bridge([])
+        address = mac_to_int("DC:47:11:85:94:2F")
+        bridge.active[address] = proxy
+
+        result = __import__("asyncio").run(bridge.handle({
+            "action": "write_fragments",
+            "address": "DC:47:11:85:94:2F",
+            "handle": 12,
+            "data": ["01" * 20, "02" * 7],
+            "response": False,
+            "delay_ms": 0,
+        }))
+
+        self.assertEqual(result, 2)
+        self.assertEqual([item[2] for item in client.writes], [bytes([1]) * 20, bytes([2]) * 7])
+        self.assertTrue(all(item[3] is False for item in client.writes))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.36] - 2026-07-12
+
+- Batch each multipart TTLock command into one ordered Node-to-ESPHome bridge request while retaining 20 ms BLE fragment pacing.
+- Keep the authenticated `checkUserTime` challenge and command response requirements unchanged; no nonce is cached or bypassed.
+- Record the first physically confirmed local ESPHome proxy unlock: alpha.35 connected through the Living Room proxy and completed the authenticated unlock in 2.67 seconds.
+- Record two subsequent supervised relock failures: both connected and failed during `checkUserTime`, before the lock actuator payload was written; the user confirmed the bolt remained unlocked after each failure.
+- Add JavaScript and Python regression coverage for ordered batched proxy writes.
+
 ## [0.1.0-alpha.35] - 2026-07-12
 
 - Give only the ESPHome proxy command path a 45-second outer connection window; raw HCI, Noble D-Bus, and native BlueZ retain their existing 12-second command cutoff.
