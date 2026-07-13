@@ -41,9 +41,11 @@ test('uses a short command timeout without shortening metadata refreshes', () =>
 
 test('keeps native BlueZ discovery active and retries promptly', () => {
   assert.equal(shouldStopMonitorBeforeConnect('bluez'), false);
+  assert.equal(shouldStopMonitorBeforeConnect('esphome_proxy'), false);
   assert.equal(shouldStopMonitorBeforeConnect('dbus'), true);
   assert.equal(shouldStopMonitorBeforeConnect('raw_hci'), true);
   assert.equal(getCommandRetryDelayMs('bluez'), 100);
+  assert.equal(getCommandRetryDelayMs('esphome_proxy'), 100);
   assert.equal(getCommandRetryDelayMs('dbus'), 1500);
   assert.equal(getCommandRetryDelayMs('raw_hci'), 1500);
 });

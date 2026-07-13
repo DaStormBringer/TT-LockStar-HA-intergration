@@ -4,7 +4,9 @@ const EventEmitter = require('events');
 const store = require("./store");
 const { AudioManage, LockedStatus, LogOperate, LogOperateCategory, LogOperateNames } = require('ttlock-sdk-js/dist/constant');
 const { BluezTTLockClient } = require('./bluezTransport');
-const TTLockClient = process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'bluez'
+const { EsphomeProxyTTLockClient } = require('./esphomeProxyTransport');
+const NATIVE_TRANSPORTS = ['bluez', 'esphome_proxy'];
+const TTLockClient = NATIVE_TRANSPORTS.includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT)
   ? null
   : require('ttlock-sdk-js/dist/TTLockClient').TTLockClient;
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
@@ -28,6 +30,16 @@ const DEADBOLT_UNLOCK_RECORD_TYPES = LogOperateCategory.UNLOCK.filter(
 
 function usesBluezDbus() {
   return ['dbus', 'bluez'].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT);
+}
+
+function usesAdvertisementGatedTransport() {
+  return ['dbus', 'bluez', 'esphome_proxy'].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT);
+}
+
+function bluetoothTransportLabel() {
+  return process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy'
+    ? 'ESPHome'
+    : 'BlueZ';
 }
 
 // Global console.log wrapper to suppress verbose SDK logs unless TTLOCK_DEBUG_COMM is enabled
@@ -168,7 +180,9 @@ class Manager extends EventEmitter {
 
         const Client = process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'bluez'
           ? BluezTTLockClient
-          : TTLockClient;
+          : process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy'
+            ? EsphomeProxyTTLockClient
+            : TTLockClient;
         this.client = new Client(clientOptions);
         const migrated = await store.migrateDeadboltStateSchema(2);
         if (migrated) {
@@ -853,11 +867,12 @@ class Manager extends EventEmitter {
       let wasMonitoring = false;
       try {
         wasMonitoring = this.client.isMonitoring();
-        if (wasMonitoring && usesBluezDbus()) {
+        if (wasMonitoring && usesAdvertisementGatedTransport()) {
+          const transportLabel = bluetoothTransportLabel();
           let advertisementAge = await waitForFreshLockAdvertisement(lock, {
             timeoutMs: DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
           });
-          if (advertisementAge === false) {
+          if (advertisementAge === false && usesBluezDbus()) {
             const refreshed = await refreshDbusDeviceCache(lock);
             if (refreshed) {
               console.log(`[Bluetooth][BlueZ] Removed stale unpaired device cache for ${address}`);
@@ -865,9 +880,9 @@ class Manager extends EventEmitter {
             advertisementAge = await waitForFreshLockAdvertisement(lock);
           }
           if (advertisementAge === false) {
-            throw new Error(`[Bluetooth][BlueZ] No fresh advertisement from ${address} within 6000ms`);
+            throw new Error(`[Bluetooth][${transportLabel}] No fresh advertisement from ${address} within 6000ms`);
           }
-          console.log(`[Bluetooth][BlueZ] Connecting from an advertisement ${advertisementAge}ms old`);
+          console.log(`[Bluetooth][${transportLabel}] Connecting from an advertisement ${advertisementAge}ms old`);
         }
         if (wasMonitoring && shouldStopMonitorBeforeConnect()) {
           console.log("[Manager] Stopping monitor before connecting to lock...");
@@ -878,7 +893,7 @@ class Manager extends EventEmitter {
             await sleep(250);
           }
         } else if (wasMonitoring) {
-          console.log("[Manager] Native BlueZ command connection is keeping discovery active");
+          console.log("[Manager] Bluetooth command connection is keeping proxy discovery active");
         }
         const connectStartedAt = Date.now();
         console.log(`[Manager] Connecting to ${address} (${readData ? 'full data' : 'command only'})`);

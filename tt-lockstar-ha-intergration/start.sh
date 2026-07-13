@@ -24,7 +24,16 @@ else
   export TTLOCK_BLUETOOTH_TRANSPORT="raw_hci"
 fi
 
-if [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "bluez" ]]; then
+if [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "esphome_proxy" ]]; then
+  unset NOBLE_BINDINGS
+  unset NOBLE_DBUS_ADAPTER_ID
+  if ! bashio::config.has_value "esphome_proxy_hosts"; then
+    bashio::exit.nok "esphome_proxy transport requires esphome_proxy_hosts"
+  fi
+  export TTLOCK_ESPHOME_PROXY_HOSTS=$(bashio::config "esphome_proxy_hosts")
+  export TTLOCK_PROXY_PYTHON="/opt/ttlock-proxy/bin/python"
+  bashio::log.warning "Using very experimental local ESPHome Bluetooth Proxy transport: ${TTLOCK_ESPHOME_PROXY_HOSTS}"
+elif [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "bluez" ]]; then
   unset NOBLE_BINDINGS
   export NOBLE_DBUS_ADAPTER_ID="hci${NOBLE_HCI_DEVICE_ID}"
   bashio::log.warning "Using experimental native BlueZ D-Bus transport on ${NOBLE_DBUS_ADAPTER_ID}; Noble is bypassed"
@@ -33,6 +42,7 @@ elif [[ "${TTLOCK_BLUETOOTH_TRANSPORT}" == "dbus" ]]; then
   export NOBLE_DBUS_ADAPTER_ID="hci${NOBLE_HCI_DEVICE_ID}"
   bashio::log.warning "Using experimental @stoprocent/noble BlueZ D-Bus transport on ${NOBLE_DBUS_ADAPTER_ID}"
 else
+  unset TTLOCK_ESPHOME_PROXY_HOSTS
   unset NOBLE_BINDINGS
   unset NOBLE_DBUS_ADAPTER_ID
   bashio::log.warning "Using legacy raw-HCI transport on hci${NOBLE_HCI_DEVICE_ID}; this is the hardware-validated fallback"

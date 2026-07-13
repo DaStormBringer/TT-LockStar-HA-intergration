@@ -6,6 +6,8 @@ ENV LANG=C.UTF-8
 RUN apk update
 RUN apk add --no-cache nodejs npm python3 py3-pip alpine-sdk libcap git bluez bluez-dev eudev-dev
 RUN setcap cap_net_raw+eip $(eval readlink -f $(which node))
+RUN python3 -m venv /opt/ttlock-proxy \
+    && /opt/ttlock-proxy/bin/pip install --no-cache-dir aioesphomeapi==45.0.4
 
 WORKDIR /
 
