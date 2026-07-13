@@ -4,11 +4,12 @@ const Module = require('node:module');
 
 const RAW_HCI = 'raw_hci';
 const DBUS = 'dbus';
+const BLUEZ = 'bluez';
 const DBUS_PACKAGE = '@ttlockstar/noble-dbus';
 
 function normalizeTransport(value) {
   const transport = String(value || RAW_HCI).trim().toLowerCase();
-  if (transport !== RAW_HCI && transport !== DBUS) {
+  if (transport !== RAW_HCI && transport !== DBUS && transport !== BLUEZ) {
     throw new Error(`Unsupported Bluetooth transport: ${transport}`);
   }
   return transport;
@@ -36,6 +37,7 @@ function installNobleTransport(transportValue = process.env.TTLOCK_BLUETOOTH_TRA
 }
 
 module.exports = {
+  BLUEZ,
   DBUS,
   DBUS_PACKAGE,
   RAW_HCI,

@@ -14,13 +14,15 @@ test('defaults to the hardware-validated raw-HCI transport', () => {
   assert.equal(normalizeTransport(' RAW_HCI '), 'raw_hci');
 });
 
-test('accepts D-Bus but rejects unknown transports', () => {
+test('accepts Noble D-Bus and native BlueZ but rejects unknown transports', () => {
   assert.equal(normalizeTransport('dbus'), 'dbus');
+  assert.equal(normalizeTransport('bluez'), 'bluez');
   assert.throws(() => normalizeTransport('auto'), /Unsupported Bluetooth transport/);
 });
 
 test('maps both Noble entrypoints only when D-Bus is selected', () => {
   assert.equal(mapNobleRequest('@abandonware/noble', 'raw_hci'), '@abandonware/noble');
+  assert.equal(mapNobleRequest('@abandonware/noble', 'bluez'), '@abandonware/noble');
   assert.equal(mapNobleRequest('@abandonware/noble', 'dbus'), DBUS_PACKAGE);
   assert.equal(
     mapNobleRequest('@abandonware/noble/with-bindings', 'dbus'),

@@ -125,7 +125,11 @@ async function waitForFreshLockAdvertisement(lock, {
 }
 
 async function refreshDbusDeviceCache(lock) {
-  const peripheral = lock?.device?.device?.peripheral;
+  const device = lock?.device?.device;
+  if (device && typeof device.refreshDevice === 'function') {
+    return await device.refreshDevice();
+  }
+  const peripheral = device?.peripheral;
   const binding = peripheral?._noble?._bindings;
   const peripheralId = peripheral?.uuid || peripheral?.id;
   if (!binding || typeof binding.refreshDevice !== 'function' || !peripheralId) return false;

@@ -1,6 +1,6 @@
 'use strict';
 
-const { sleep } = require('ttlock-sdk-js');
+const { sleep } = require('ttlock-sdk-js/dist/util/timingUtil');
 const WebSocket = require('ws');
 const manager = require("../src/manager");
 const store = require('../src/store');

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.26] - 2026-07-12
+
+- Record that a synchronized alpha.25 awake-keypad test still produced no Noble discovery or update event; both attempts failed closed before connecting or writing a command.
+- Add a native `bluez` transport that bypasses Noble and talks directly to BlueZ through its D-Bus Device and GATT interfaces.
+- Preserve the TTLock SDK's protocol, encryption, credentials, command, and response layers behind native scanner, device, service, characteristic, and descriptor adapters.
+- Keep `raw_hci` and the Noble-backed `dbus` path available as comparison fallbacks while native BlueZ receives supervised hardware validation.
+- Add native transport selection, adapter routing, command-fragment pacing, identifier conversion, manufacturer-data conversion, and GATT-flag tests.
+
 ## [0.1.0-alpha.25] - 2026-07-12
 
 - Record that alpha.24 received a live SDK `lockUpdated` wake event, but the D-Bus Noble path did not emit the separate `foundLock` event watched by the freshness gate; both unlock cycles failed closed before connecting or writing a command.

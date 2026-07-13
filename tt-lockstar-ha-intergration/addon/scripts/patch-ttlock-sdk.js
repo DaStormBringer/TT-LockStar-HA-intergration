@@ -20,6 +20,7 @@ const FAST_COMMAND_TIMEOUT_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_TIMEOUT';
 const TARGETED_NOBLE_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_SERVICE_DISCOVERY';
 const TARGETED_COMMAND_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_COMMAND_DISCOVERY';
 const DBUS_COMMAND_PACING_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_COMMAND_PACING';
+const DIRECT_COMMAND_ENVELOPE_PATCH_MARKER = 'TT_LOCKSTAR_DIRECT_COMMAND_ENVELOPE';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
   const count = source.split(expected).length - 1;
@@ -27,6 +28,24 @@ function replaceExactlyOnce(source, expected, replacement, label) {
     throw new Error(`Cannot patch ${label}: expected one match, found ${count}`);
   }
   return source.replace(expected, replacement);
+}
+
+function patchDirectCommandEnvelopeImport(source) {
+  if (source.includes(DIRECT_COMMAND_ENVELOPE_PATCH_MARKER)) return source;
+  let patched = replaceExactlyOnce(
+    source,
+    'const __1 = require("..");',
+    `// ${DIRECT_COMMAND_ENVELOPE_PATCH_MARKER}: avoid importing the SDK barrel,
+// which eagerly initializes Noble even when the native BlueZ client is selected.
+const CommandEnvelope_1 = require("../api/CommandEnvelope");`,
+    'TTLockApi direct CommandEnvelope import',
+  );
+  const usageCount = (patched.match(/__1\.CommandEnvelope/g) || []).length;
+  if (usageCount === 0) {
+    throw new Error('Cannot patch TTLockApi direct CommandEnvelope usage: found no matches');
+  }
+  patched = patched.replace(/__1\.CommandEnvelope/g, 'CommandEnvelope_1.CommandEnvelope');
+  return patched;
 }
 
 function patchNobleDevice(source) {
@@ -145,7 +164,7 @@ function patchDbusCommandPacing(source) {
             // ${DBUS_COMMAND_PACING_PATCH_MARKER}: WriteValue returns as soon as
             // BlueZ accepts a write-without-response fragment. Pace only multi-part
             // D-Bus commands so the lock can consume one ATT packet before the next.
-            if (process.env.TTLOCK_BLUETOOTH_TRANSPORT === "dbus") {
+            if (["dbus", "bluez"].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT)) {
                 const fragmentNumber = Math.floor(index / MTU) + 1;
                 const fragmentCount = Math.ceil(data.length / MTU);
                 console.log(\`[Bluetooth][D-Bus] command fragment \${fragmentNumber}/\${fragmentCount} accepted (\${fragment.length} bytes)\`);
@@ -562,6 +581,7 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
     ),
   );
   let lockApiSource = fs.readFileSync(lockApiPath, 'utf8');
+  lockApiSource = patchDirectCommandEnvelopeImport(lockApiSource);
   lockApiSource = patchLockStateInitialization(lockApiSource);
   lockApiSource = patchLockStateAdvertisement(lockApiSource);
   fs.writeFileSync(lockApiPath, lockApiSource);
@@ -594,6 +614,7 @@ module.exports = {
   patchFastCommandLockConnect,
   patchInstalledSdk,
   patchDeadboltStatusQuery,
+  patchDirectCommandEnvelopeImport,
   patchDbusCommandPacing,
   patchLockStateAdvertisement,
   patchLockStateInitialization,
