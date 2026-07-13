@@ -492,10 +492,16 @@ class Manager extends EventEmitter {
     if (lock?.featureList instanceof Set) return true;
 
     console.log(`[Manager] Loading read-only hardware features for ${lock.getAddress()}`);
-    if (!(await this._connectLock(lock, true))) return false;
+    const connected = await this._connectLock(lock, true);
     if (!(lock.featureList instanceof Set)) {
       console.error(`[Manager] Hardware feature discovery returned no feature list for ${lock.getAddress()}`);
       return false;
+    }
+    if (!connected) {
+      console.warn(
+        `[Manager] ${lock.getAddress()} disconnected after decoding hardware features; `
+        + 'preserving the completed read-only result',
+      );
     }
 
     // The patched SDK serializes the feature set as an array. Persist it here

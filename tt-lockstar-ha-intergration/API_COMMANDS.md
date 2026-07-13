@@ -129,7 +129,7 @@ Credentials:
 
 Use `capabilities` for exact argument metadata and risk classification rather than hard-coding this document alone.
 
-`lock.features.get` performs a read-only full metadata connection only when the SDK feature list is not already available. It returns numeric/name feature pairs and a summarized `supports` object, then persists the feature list for future add-on restarts. The saved list contains capability identifiers only—no passcodes, card numbers, fingerprints, or authentication secrets. Feature-gated auto-lock, sound, PIN, card, passage-mode, and remote-unlock commands use the same lazy bootstrap so a safe direct-ESPHome startup deferral cannot make supported hardware appear absent.
+`lock.features.get` performs a read-only full metadata connection only when the SDK feature list is not already available. It returns numeric/name feature pairs and a summarized `supports` object, then persists the feature list for future add-on restarts. If the lock disconnects after the complete list is decoded but before the SDK finishes connection bookkeeping, the completed read-only result is still preserved. The saved list contains capability identifiers only—no passcodes, card numbers, fingerprints, or authentication secrets. Feature-gated auto-lock, sound, PIN, card, passage-mode, and remote-unlock commands use the same lazy bootstrap so a safe direct-ESPHome startup deferral cannot make supported hardware appear absent.
 
 ### Prepared connection
 

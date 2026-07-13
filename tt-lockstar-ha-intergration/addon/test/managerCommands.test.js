@@ -128,7 +128,7 @@ test('new high-level manager commands use command-only SDK sessions', async (t) 
   assert.equal(calls.some(item => item[0] === 'setLockSound' && item[1] === AudioManage.TURN_OFF), true);
 });
 
-test('loads and persists hardware features before feature-gated commands', async (t) => {
+test('persists decoded hardware features after a late SDK disconnect', async (t) => {
   const originalPairedLocks = manager.pairedLocks;
   const originalConnect = manager._connectLock;
   const originalClient = manager.client;
@@ -156,7 +156,7 @@ test('loads and persists hardware features before feature-gated commands', async
     assert.equal(candidate, lock);
     assert.equal(readData, true);
     lock.featureList = new Set([FeatureValue.PASSCODE, FeatureValue.AUTO_LOCK]);
-    return true;
+    return false;
   };
   store.setLockData = async value => { persisted = value; };
 

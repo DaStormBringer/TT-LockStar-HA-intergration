@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.56] - 2026-07-13
+
+- Preserve and persist a completely decoded read-only hardware feature list when the M302 disconnects during the SDK's final connection bookkeeping.
+- Correct the live alpha.55 behavior where the feature flags became available in memory but `lock.features.get` returned failure before saving them.
+- Keep all physical, setting, credential, and fingerprint commands untouched; the recovery accepts a result only when the SDK feature `Set` already exists.
+- Pass 104 JavaScript tests and 8 ESPHome bridge tests in the built `amd64` image; verify add-on 0.1.0-alpha.56, SDK 0.3.34, and 42 exposed commands.
+
 ## [0.1.0-alpha.55] - 2026-07-13
 
 - Add `lock.features.get` for explicit read-only hardware capability discovery and raise the generic API catalog to 42 commands.
