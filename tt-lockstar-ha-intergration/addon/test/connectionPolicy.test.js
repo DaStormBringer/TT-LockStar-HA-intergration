@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const {
   DEFAULT_ADVERTISEMENT_FRESHNESS_MS,
+  ESPHOME_PROXY_ADVERTISEMENT_FRESHNESS_MS,
   DEFAULT_ADVERTISEMENT_WAIT_MS,
   DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
   DEFAULT_COMMAND_RETRY_DELAY_MS,
@@ -19,6 +20,7 @@ const {
   cancelStaleLockConnection,
   connectWithPolicy,
   getLockAdvertisementAge,
+  getCommandAdvertisementFreshnessMs,
   getCommandRetryDelayMs,
   getCommandConnectTimeoutMs,
   isConnectionRetrySafe,
@@ -31,6 +33,7 @@ const {
 
 test('uses a short command timeout without shortening metadata refreshes', () => {
   assert.equal(DEFAULT_ADVERTISEMENT_FRESHNESS_MS, 10000);
+  assert.equal(ESPHOME_PROXY_ADVERTISEMENT_FRESHNESS_MS, 1000);
   assert.equal(DEFAULT_ADVERTISEMENT_WAIT_MS, 6000);
   assert.equal(DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS, 15000);
   assert.equal(DEFAULT_COMMAND_RETRY_DELAY_MS, 1500);
@@ -44,6 +47,10 @@ test('uses a short command timeout without shortening metadata refreshes', () =>
   assert.equal(getCommandConnectTimeoutMs('bluez'), 12000);
   assert.equal(getCommandConnectTimeoutMs('dbus'), 12000);
   assert.equal(getCommandConnectTimeoutMs('raw_hci'), 12000);
+  assert.equal(getCommandAdvertisementFreshnessMs('esphome_proxy'), 1000);
+  assert.equal(getCommandAdvertisementFreshnessMs('bluez'), 10000);
+  assert.equal(getCommandAdvertisementFreshnessMs('dbus'), 10000);
+  assert.equal(getCommandAdvertisementFreshnessMs('raw_hci'), 10000);
 });
 
 test('keeps native BlueZ discovery active and retries promptly', () => {

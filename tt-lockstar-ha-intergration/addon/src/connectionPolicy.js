@@ -6,6 +6,7 @@ const ESPHOME_PROXY_COMMAND_CONNECT_TIMEOUT_MS = 45000;
 const DEFAULT_HARD_CONNECT_TIMEOUT_MS = DEFAULT_FULL_CONNECT_TIMEOUT_MS;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 1500;
 const DEFAULT_ADVERTISEMENT_FRESHNESS_MS = 10000;
+const ESPHOME_PROXY_ADVERTISEMENT_FRESHNESS_MS = 1000;
 const DEFAULT_ADVERTISEMENT_WAIT_MS = 6000;
 const DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS = 15000;
 const DEFAULT_COMMAND_RETRY_DELAY_MS = 1500;
@@ -120,6 +121,14 @@ function getCommandConnectTimeoutMs(
     : DEFAULT_COMMAND_CONNECT_TIMEOUT_MS;
 }
 
+function getCommandAdvertisementFreshnessMs(
+  transport = process.env.TTLOCK_BLUETOOTH_TRANSPORT,
+) {
+  return transport === 'esphome_proxy'
+    ? ESPHOME_PROXY_ADVERTISEMENT_FRESHNESS_MS
+    : DEFAULT_ADVERTISEMENT_FRESHNESS_MS;
+}
+
 function markLockAdvertisement(lock, timestamp = Date.now()) {
   if (lock) lock[LAST_ADVERTISEMENT_PROPERTY] = timestamp;
 }
@@ -203,6 +212,7 @@ async function connectWithPolicy(lock, {
 
 module.exports = {
   DEFAULT_ADVERTISEMENT_FRESHNESS_MS,
+  ESPHOME_PROXY_ADVERTISEMENT_FRESHNESS_MS,
   DEFAULT_ADVERTISEMENT_WAIT_MS,
   DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
   DEFAULT_COMMAND_RETRY_DELAY_MS,
@@ -218,6 +228,7 @@ module.exports = {
   cancelStaleLockConnection,
   connectWithPolicy,
   getLockAdvertisementAge,
+  getCommandAdvertisementFreshnessMs,
   getCommandRetryDelayMs,
   getCommandConnectTimeoutMs,
   isConnectionRetrySafe,

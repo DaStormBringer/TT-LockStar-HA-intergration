@@ -75,7 +75,7 @@ test('connects, enumerates GATT, writes, and surfaces notifications through the 
   });
 
   assert.equal(await device.connect(4.5), true);
-  assert.equal(calls[0].payload.timeout, 18);
+  assert.equal(calls[0].payload.timeout, 8);
   assert.equal(device.proxyName, 'bedroom-proxy');
   const services = await device.discoverServices(['1910']);
   const service = services.get('1910');

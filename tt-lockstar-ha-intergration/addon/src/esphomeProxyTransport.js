@@ -329,7 +329,14 @@ class EsphomeProxyDevice extends EventEmitter {
     this.connecting = true;
     this.state = 'connecting';
     try {
-      const timeout = Math.max(Number(timeoutSeconds) || 18, 18);
+      const requestedTimeout = Number(timeoutSeconds);
+      // Command-only TTLock sessions request eight seconds. Do not silently
+      // stretch that to 18 seconds: an old/weak connection attempt can consume
+      // the lock's short BLE command window before the bounded retry starts.
+      // Full metadata sessions still pass their existing longer timeout.
+      const timeout = Number.isFinite(requestedTimeout) && requestedTimeout > 0
+        ? Math.max(requestedTimeout, 8)
+        : 8;
       const result = await this.scanner.bridge.request('connect', {
         address: this.address,
         address_type: this.addressType,

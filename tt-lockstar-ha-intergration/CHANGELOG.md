@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.42] - 2026-07-13
+
+- Require an ESPHome lock advertisement no older than one second before starting a command connection; other Bluetooth transports retain the existing ten-second freshness window.
+- Honor the SDK's eight-second ESPHome command-only connection timeout instead of silently extending it to 18 seconds. Full metadata connections retain their existing longer timeout.
+- Preserve authentication selection, command payloads, response validation, notification resubscription, 100 ms fragment pacing, and the bounded two-attempt fail-closed policy.
+- Record alpha.41's supervised first-attempt unlock, lock, and unlock successes at 6.815, 1.722, and 4.262 seconds, with every bolt movement physically confirmed.
+- Record the no-keypad-wake failure: attempt one started from a 9.987-second-old packet and timed out; attempt two connected from a 50 ms-old packet but lost the final lock response; the bolt remained physically unlocked after 41.844 seconds.
+
 ## [0.1.0-alpha.41] - 2026-07-13
 
 - Clear ESPHome GATT notification callbacks whenever the BLE link disconnects and defensively before reconnecting, so every new lock session sends a fresh start-notify request instead of trusting a stale subscription marker.

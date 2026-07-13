@@ -12,6 +12,7 @@ const TTLockClient = NATIVE_TRANSPORTS.includes(process.env.TTLOCK_BLUETOOTH_TRA
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
 const {
   connectWithPolicy,
+  getCommandAdvertisementFreshnessMs,
   getCommandRetryDelayMs,
   isConnectionRetrySafe,
   markLockAndStoredAdvertisement,
@@ -870,6 +871,7 @@ class Manager extends EventEmitter {
         if (wasMonitoring && usesAdvertisementGatedTransport()) {
           const transportLabel = bluetoothTransportLabel();
           let advertisementAge = await waitForFreshLockAdvertisement(lock, {
+            freshnessMs: getCommandAdvertisementFreshnessMs(),
             timeoutMs: DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
           });
           if (advertisementAge === false && usesBluezDbus()) {
@@ -880,7 +882,10 @@ class Manager extends EventEmitter {
             advertisementAge = await waitForFreshLockAdvertisement(lock);
           }
           if (advertisementAge === false) {
-            throw new Error(`[Bluetooth][${transportLabel}] No fresh advertisement from ${address} within 6000ms`);
+            throw new Error(
+              `[Bluetooth][${transportLabel}] No fresh advertisement from ${address} `
+              + `within ${DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS}ms`,
+            );
           }
           console.log(`[Bluetooth][${transportLabel}] Connecting from an advertisement ${advertisementAge}ms old`);
         }
