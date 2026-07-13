@@ -16,6 +16,7 @@ const {
   patchNobleDevice,
   patchNobleDbusStateCache,
   patchNobleDbusDuplicateDiscovery,
+  patchNobleDbusDeviceRefresh,
   patchNobleScanner,
   patchTargetedCommandDiscovery,
   patchTargetedNobleDiscovery,
@@ -107,6 +108,20 @@ test('bridges BlueZ duplicate property updates into Noble discovery events', () 
   assert.equal(patchNobleDbusDuplicateDiscovery(patched), patched);
 });
 
+test('refreshes only unpaired cached BlueZ device objects', () => {
+  const source = `  // ---- Connect / disconnect ----
+
+  connect (peripheralUuid, _parameters) {`;
+
+  const patched = patchNobleDbusDeviceRefresh(source);
+
+  assert.match(patched, /TT_LOCKSTAR_DBUS_DEVICE_REFRESH/);
+  assert.match(patched, /if \(props\.Paired\)/);
+  assert.match(patched, /RemoveDevice\(device\.path\)/);
+  assert.match(patched, /refusing to remove paired BlueZ device/);
+  assert.equal(patchNobleDbusDeviceRefresh(patched), patched);
+});
+
 test('uses a shorter Bluetooth setup path for command-only connections', () => {
   const deviceSource = `    async connect() {
             if (await this.device.connect()) {
@@ -181,6 +196,7 @@ test('fails closed when the expected SDK code is not present', () => {
   assert.throws(() => patchNobleDevice('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDbusStateCache('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDbusDuplicateDiscovery('unexpected source'), /expected one match/);
+  assert.throws(() => patchNobleDbusDeviceRefresh('unexpected source'), /expected one match/);
   assert.throws(() => patchFastCommandDeviceConnect('unexpected source'), /expected one match/);
   assert.throws(() => patchFastCommandLockConnect('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleScanner('unexpected source'), /expected one match/);

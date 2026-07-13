@@ -17,6 +17,7 @@ const {
   getLockAdvertisementAge,
   isConnectionRetrySafe,
   markLockAdvertisement,
+  refreshDbusDeviceCache,
   waitForFreshLockAdvertisement,
 } = require('../src/connectionPolicy');
 
@@ -71,6 +72,31 @@ test('fails closed when no fresh advertisement arrives', async () => {
 
   assert.equal(result, false);
   assert.equal(nowMs, 1120);
+});
+
+test('refreshes the target through the selected Noble D-Bus binding', async () => {
+  const calls = [];
+  const lock = {
+    device: {
+      device: {
+        peripheral: {
+          uuid: 'lock-id',
+          _noble: {
+            _bindings: {
+              refreshDevice: async id => {
+                calls.push(id);
+                return true;
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+
+  assert.equal(await refreshDbusDeviceCache(lock), true);
+  assert.deepEqual(calls, ['lock-id']);
+  assert.equal(await refreshDbusDeviceCache({}), false);
 });
 
 test('uses a command-only SDK connection when metadata is not required', async () => {

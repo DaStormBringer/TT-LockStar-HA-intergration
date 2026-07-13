@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.23] - 2026-07-12
+
+- Record that alpha.22 still received no live property update from the lock and correctly wrote no command during either freshness window.
+- If no duplicate advertisement arrives within 1.5 seconds, remove only the target's unpaired stale BlueZ device object and wait for a real `InterfacesAdded` rediscovery.
+- Refuse the cache refresh when BlueZ reports the target as paired, protecting host-level pairing keys.
+- Keep TTLock protocol credentials and all other Bluetooth devices untouched.
+- Add regression coverage for binding discovery, targeted refresh, and the paired-device safety guard.
+
 ## [0.1.0-alpha.22] - 2026-07-12
 
 - Record that alpha.21 correctly failed closed because the D-Bus transport produced no duplicate Noble discovery event within either six-second freshness window; no lock command was written.

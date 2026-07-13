@@ -8,6 +8,7 @@ const {
   connectWithPolicy,
   isConnectionRetrySafe,
   markLockAdvertisement,
+  refreshDbusDeviceCache,
   waitForFreshLockAdvertisement,
 } = require('./connectionPolicy');
 
@@ -835,7 +836,14 @@ class Manager extends EventEmitter {
       try {
         wasMonitoring = this.client.isMonitoring();
         if (wasMonitoring && process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'dbus') {
-          const advertisementAge = await waitForFreshLockAdvertisement(lock);
+          let advertisementAge = await waitForFreshLockAdvertisement(lock, { timeoutMs: 1500 });
+          if (advertisementAge === false) {
+            const refreshed = await refreshDbusDeviceCache(lock);
+            if (refreshed) {
+              console.log(`[Bluetooth][D-Bus] Removed stale unpaired BlueZ cache for ${address}`);
+            }
+            advertisementAge = await waitForFreshLockAdvertisement(lock);
+          }
           if (advertisementAge === false) {
             throw new Error(`[Bluetooth][D-Bus] No fresh advertisement from ${address} within 6000ms`);
           }

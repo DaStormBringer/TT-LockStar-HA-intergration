@@ -118,6 +118,14 @@ async function waitForFreshLockAdvertisement(lock, {
   }
 }
 
+async function refreshDbusDeviceCache(lock) {
+  const peripheral = lock?.device?.device?.peripheral;
+  const binding = peripheral?._noble?._bindings;
+  const peripheralId = peripheral?.uuid || peripheral?.id;
+  if (!binding || typeof binding.refreshDevice !== 'function' || !peripheralId) return false;
+  return await binding.refreshDevice(peripheralId);
+}
+
 /**
  * Connect to a lock with an outer timeout that cannot be bypassed by a hung
  * Noble/SDK promise. Command operations set readData=false so the SDK skips
@@ -169,5 +177,6 @@ module.exports = {
   getLockAdvertisementAge,
   isConnectionRetrySafe,
   markLockAdvertisement,
+  refreshDbusDeviceCache,
   waitForFreshLockAdvertisement,
 };

@@ -13,6 +13,7 @@ const NOBLE_ENTRYPOINT_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_ADAPTER';
 const NOBLE_WITH_BINDINGS_SHIM_MARKER = 'TT_LOCKSTAR_WITH_BINDINGS_SHIM';
 const NOBLE_DBUS_STATE_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_LIVE_STATE';
 const NOBLE_DBUS_DUPLICATE_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_DUPLICATE_DISCOVERY';
+const NOBLE_DBUS_DEVICE_REFRESH_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_DEVICE_REFRESH';
 const FAST_COMMAND_DEVICE_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_DEVICE_CONNECT';
 const FAST_COMMAND_LOCK_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_LOCK_CONNECT';
 const FAST_COMMAND_TIMEOUT_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_TIMEOUT';
@@ -310,6 +311,37 @@ function patchNobleDbusDuplicateDiscovery(source) {
   return patched;
 }
 
+function patchNobleDbusDeviceRefresh(source) {
+  if (source.includes(NOBLE_DBUS_DEVICE_REFRESH_PATCH_MARKER)) return source;
+
+  return replaceExactlyOnce(
+    source,
+    `  // ---- Connect / disconnect ----
+
+  connect (peripheralUuid, _parameters) {`,
+    `  // ---- Connect / disconnect ----
+
+  // ${NOBLE_DBUS_DEVICE_REFRESH_PATCH_MARKER}: discard only an unpaired
+  // target's stale BlueZ object so the next InterfacesAdded is evidence of
+  // a real radio advertisement. TTLock protocol credentials live above BlueZ.
+  async refreshDevice (peripheralUuid) {
+    const id = normalizeId(peripheralUuid);
+    const device = this._devices.get(id);
+    if (!device || !device.path || !this._adapterIface) return false;
+    const stored = this._objects.get(device.path) || {};
+    const props = stored[DEVICE_IFACE] || {};
+    if (props.Paired) {
+      throw new Error(\`refusing to remove paired BlueZ device \${device.address}\`);
+    }
+    await this._adapterIface.RemoveDevice(device.path);
+    return true;
+  }
+
+  connect (peripheralUuid, _parameters) {`,
+    '@stoprocent/noble targeted unpaired device refresh',
+  );
+}
+
 function patchFastCommandDeviceConnect(source) {
   if (source.includes(FAST_COMMAND_DEVICE_PATCH_MARKER)) return source;
 
@@ -544,8 +576,10 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   fs.writeFileSync(nobleWithBindingsPath, createNobleWithBindingsShim());
   fs.writeFileSync(
     nobleDbusBindingsPath,
-    patchNobleDbusDuplicateDiscovery(
-      patchNobleDbusStateCache(fs.readFileSync(nobleDbusBindingsPath, 'utf8')),
+    patchNobleDbusDeviceRefresh(
+      patchNobleDbusDuplicateDiscovery(
+        patchNobleDbusStateCache(fs.readFileSync(nobleDbusBindingsPath, 'utf8')),
+      ),
     ),
   );
   console.log(`Patched ttlock-sdk-js ${EXPECTED_VERSION}; raw-HCI Noble ${rawNoblePackage.version}; D-Bus Noble ${noblePackage.version}`);
@@ -567,6 +601,7 @@ module.exports = {
   patchNobleDevice,
   patchNobleDbusStateCache,
   patchNobleDbusDuplicateDiscovery,
+  patchNobleDbusDeviceRefresh,
   patchNobleScanner,
   patchTargetedCommandDiscovery,
   patchTargetedNobleDiscovery,
