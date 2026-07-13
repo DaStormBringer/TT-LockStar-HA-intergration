@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 process.env.TTLOCK_BLUETOOTH_TRANSPORT = 'esphome_proxy';
-const { Manager } = require('../src/manager');
+const { Manager, PRECONNECT_WAKE_WAIT_MS } = require('../src/manager');
+const { markLockAdvertisement } = require('../src/connectionPolicy');
 
 const ADDRESS = 'DC:47:11:85:94:2F';
 
@@ -21,6 +22,7 @@ test('manager prepares a read-only connection lease and expires it through disco
     connected = true;
     return true;
   };
+  manager._waitForPreparedAdvertisement = async () => true;
   manager.preparedConnections = {
     get: () => undefined,
     schedule: (address, holdMs, callback) => {
@@ -44,6 +46,19 @@ test('manager prepares a read-only connection lease and expires it through disco
   });
   await expiryCallback();
   assert.equal(disconnected, ADDRESS);
+});
+
+test('preparation has a longer wake window than a physical command', async () => {
+  const manager = new Manager();
+  const lock = { getAddress: () => ADDRESS };
+  assert.equal(PRECONNECT_WAKE_WAIT_MS, 60000);
+
+  const missing = await manager._waitForPreparedAdvertisement(lock, { timeoutMs: 5 });
+  assert.equal(missing, false);
+
+  markLockAdvertisement(lock);
+  const fresh = await manager._waitForPreparedAdvertisement(lock, { timeoutMs: 5 });
+  assert.equal(fresh, true);
 });
 
 test('manager claims a prepared connection before entering the mutex wait', async () => {
@@ -93,6 +108,7 @@ test('connection preparation waits rather than hijacking an active command sessi
     connected = true;
     return true;
   };
+  manager._waitForPreparedAdvertisement = async () => true;
 
   const pending = manager.prepareLockConnection(ADDRESS, 15);
   await new Promise(resolve => setImmediate(resolve));
