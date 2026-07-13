@@ -6,6 +6,7 @@
 - Expose an experimental `Advertised Lock State` diagnostic through MQTT discovery, WebSocket lock status, and read-only `lock.status.get` evidence. A clear bit is labeled `IDLE_NO_UNLOCK_SIGNAL`, never `LOCKED`.
 - Keep advertisement observations process-local, timestamped, explicitly unconfirmed, and rate-limit unchanged MQTT/WebSocket updates to once every 30 seconds while publishing semantic changes immediately.
 - Pass 98 JavaScript tests and 8 ESPHome bridge tests in the built `amd64` image; verify add-on 0.1.0-alpha.53, SDK 0.3.34, and 41 exposed commands.
+- Validate the deployed M302 passive path: Home Assistant reports `IDLE_NO_UNLOCK_SIGNAL` with `advertised_confirmed: false`, while the independent confirmed deadbolt state remains `UNKNOWN` and the magnetic contact reports `CLOSED`; no actuator command was sent.
 
 ## [0.1.0-alpha.52] - 2026-07-13
 
