@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.43] - 2026-07-13
+
+- Consume Home Assistant's authenticated `bluetooth/subscribe_advertisements` WebSocket feed by default so Home Assistant retains ownership of each ESPHome proxy's single advertisement subscription.
+- Keep direct ESPHome native API clients connection-only for active scan mode, connection-slot reporting, GATT connections, reads, writes, and notifications.
+- Map Home Assistant's scanner `source` address back to each configured ESPHome proxy before surfacing a fresh lock advertisement, preserving signal-aware proxy selection without a race against the command freshness gate.
+- Retain the former direct advertisement subscription only as an explicit `direct` diagnostic option; never fall back to it automatically.
+- Add JavaScript coverage for Home Assistant WebSocket authentication, subscription, advertisement normalization, and proxy mapping, plus Python coverage for scanner-source routing.
+- This release requires a deployed read-only firmware/version request before the new shared-feed path is considered hardware validated; no actuator behavior changes are included.
+
 ## [0.1.0-alpha.42] - 2026-07-13
 
 - Require an ESPHome lock advertisement no older than one second before starting a command connection; other Bluetooth transports retain the existing ten-second freshness window.

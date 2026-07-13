@@ -11,6 +11,7 @@ const {
   addressToId,
   normalizeUuid,
 } = require('./bluezTransport');
+const { HomeAssistantBluetoothFeed } = require('./haBluetoothFeed');
 
 const GATT_PROPERTIES = {
   0x01: 'broadcast',
@@ -167,6 +168,15 @@ class EsphomeProxyBridge extends EventEmitter {
     });
   }
 
+  noteAdvertisement(device) {
+    return this.request('observe', {
+      address: device.address,
+      address_type: device.address_type,
+      rssi: device.rssi,
+      source: device.source,
+    }, 3000);
+  }
+
   close() {
     if (this.child?.stdin?.writable) this.child.stdin.end();
   }
@@ -177,17 +187,29 @@ class EsphomeProxyScanner extends EventEmitter {
     super();
     this.uuids = [...new Set(uuids.map(normalizeUuid))];
     this.bridge = options.bridge || new EsphomeProxyBridge(options);
+    this.advertisementSource = options.advertisementSource
+      || process.env.TTLOCK_ESPHOME_ADVERTISEMENT_SOURCE
+      || 'home_assistant';
+    this.advertisementFeed = options.advertisementFeed
+      || (this.advertisementSource === 'home_assistant'
+        ? new HomeAssistantBluetoothFeed(options)
+        : null);
     this.devices = new Map();
     this.targetAddresses = new Set();
     this.scannerState = 'unknown';
     this.scanning = false;
     this.initialDevicesSurfaced = false;
+    this.bridgeReady = false;
+    this.feedReady = this.advertisementFeed === null;
+    this.readyEmitted = false;
     this.bridge.on('ready', proxies => {
       this.proxies = proxies;
-      this.scannerState = 'stopped';
-      this.emit('ready');
+      this.bridgeReady = true;
+      this._maybeReady();
     });
-    this.bridge.on('advertisement', event => this._onAdvertisement(event));
+    this.bridge.on('advertisement', event => {
+      this._onAdvertisement(event).catch(error => this.emit('error', error));
+    });
     this.bridge.on('connection', event => {
       this.devices.get(addressToId(event.address))?.handleConnectionEvent(event);
     });
@@ -201,11 +223,33 @@ class EsphomeProxyScanner extends EventEmitter {
       this.scannerState = 'unsupported';
       this.emit('error', error);
     });
-    this._initPromise = this.bridge.start().catch(error => {
+    if (this.advertisementFeed) {
+      this.advertisementFeed.on('ready', () => {
+        this.feedReady = true;
+        this._maybeReady();
+      });
+      this.advertisementFeed.on('advertisement', event => {
+        this._onAdvertisement(event).catch(error => this.emit('error', error));
+      });
+      this.advertisementFeed.on('fatal', error => {
+        this.scannerState = 'unsupported';
+        this.emit('error', error);
+      });
+    }
+    const starts = [this.bridge.start()];
+    if (this.advertisementFeed) starts.push(this.advertisementFeed.start());
+    this._initPromise = Promise.all(starts).catch(error => {
       this.scannerState = 'unsupported';
       this.emit('error', error);
       return false;
     });
+  }
+
+  _maybeReady() {
+    if (this.readyEmitted || !this.bridgeReady || !this.feedReady) return;
+    this.readyEmitted = true;
+    this.scannerState = 'stopped';
+    this.emit('ready');
   }
 
   getState() { return this.scannerState; }
@@ -248,7 +292,7 @@ class EsphomeProxyScanner extends EventEmitter {
     if (this._matchesFilter(device)) this.emit('discover', device);
   }
 
-  _onAdvertisement(event) {
+  async _onAdvertisement(event) {
     const values = event.device || {};
     const id = addressToId(values.address);
     let device = this.devices.get(id);
@@ -258,10 +302,23 @@ class EsphomeProxyScanner extends EventEmitter {
     } else {
       device.updateAdvertisement(values);
     }
-    device.lastProxy = event.proxy;
-    if (this._matchesFilter(device)) {
+    let proxy = event.proxy;
+    const matched = this._matchesFilter(device);
+    if (matched && event.transport === 'home_assistant') {
+      try {
+        const observed = await this.bridge.noteAdvertisement(values);
+        proxy = observed?.proxy || values.source || proxy;
+      } catch (error) {
+        console.warn(
+          `[Bluetooth][ESPHome] Could not map Home Assistant advertisement ${device.address} `
+          + `to a proxy: ${error.message || error}`,
+        );
+      }
+    }
+    device.lastProxy = proxy;
+    if (matched) {
       console.log(
-        `[Bluetooth][ESPHome] Target advertisement ${device.address} via ${event.proxy || 'unknown proxy'} `
+        `[Bluetooth][ESPHome] Target advertisement ${device.address} via ${proxy || 'unknown proxy'} `
         + `(RSSI ${device.rssi})`,
       );
     }
@@ -692,6 +749,7 @@ class EsphomeProxyTTLockClient extends EventEmitter {
   stopBTService() {
     if (this.bleService) this.stopScanLock();
     this.bleService?.scanner?.bridge?.close();
+    this.bleService?.scanner?.advertisementFeed?.close();
     this.bleService = null;
     return true;
   }

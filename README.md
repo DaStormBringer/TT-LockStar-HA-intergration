@@ -11,9 +11,11 @@ The slug was changed before the first release. Home Assistant treats a changed s
 
 Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or operating a lock.
 
+Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt-lockstar-ha-intergration/UPDATE_NOTES.md).
+
 ## Current status
 
-- Add-on version: `0.1.0-alpha.42`
+- Add-on version: `0.1.0-alpha.43`
 - Home Assistant stage: `experimental`
 - Development branch: `main`
 - Target: Home Assistant on Linux
@@ -21,7 +23,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
-- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Alpha.29 also records the first physically verified native BlueZ round trip without an add-on restart: unlock completed in 4.32 seconds; the immediate lock used its bounded second attempt and completed in 9.17 seconds. The user confirmed both bolt movements at the door. This is promising single-device evidence, not unattended-use qualification.
+- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ also has one physically verified round trip without an add-on restart: unlock completed in 4.32 seconds; the immediate lock used its bounded second attempt and completed in 9.17 seconds. The user confirmed both bolt movements at the door. This is promising single-device evidence, not unattended-use qualification.
 - Production readiness: **not ready**
 
 Compatibility is claimed only for the user's M302 lock running its currently installed firmware. The current SDK metadata exposes the firmware as `unknown`; no other lock model or M302 firmware is claimed as tested until that exact value is captured during a full-metadata session.
@@ -36,9 +38,9 @@ This add-on communicates locally with a TTLock-compatible lock using a selectabl
 - The adapter is selected with `bluetooth_adapter`, normally `hci0` or `hci1`.
 - The transport is selected with `bluetooth_transport`: `raw_hci` by default, Noble-backed `dbus`, native `bluez`, or local `esphome_proxy`.
 - `esphome_proxy_hosts` is a comma-separated list of native API endpoints such as `192.168.1.30:6053,192.168.1.55:6053`. No TTLock Cloud or G2 gateway is used by this transport.
-- Alpha.32 supports ESPHome native API endpoints without an API password or Noise encryption key. Keep those endpoints on a trusted local network; encrypted proxy credentials are not implemented yet.
-- ESPHome currently routes Bluetooth proxy advertisements and GATT responses to one native-API subscriber at a time. Every endpoint in `esphome_proxy_hosts` is therefore dedicated to TT LockStar while this add-on runs; Home Assistant Core will not simultaneously receive Bluetooth advertisements through those same proxies. Configure only the proxy or proxies you are willing to dedicate.
-- Alpha.32 explicitly requests active scanning whenever it connects to a proxy. The proxy must expose scanner state/mode control in addition to active connections and remote GATT caching.
+- ESPHome proxy support currently accepts native API endpoints without an API password or Noise encryption key. Keep those endpoints on a trusted local network; encrypted proxy credentials are not implemented yet.
+- With `esphome_advertisement_source: home_assistant` (the default), Home Assistant retains the ESPHome advertisement subscription and TT LockStar consumes the supported `bluetooth/subscribe_advertisements` WebSocket feed. The add-on's direct ESPHome clients remain connection-only for active scan mode and GATT. The legacy `direct` source is retained only for bounded diagnostics and can displace Home Assistant's proxy stream.
+- The add-on explicitly requests active scanning whenever it connects to a proxy. The proxy must expose scanner state/mode control in addition to active connections and remote GATT caching.
 - A TTLock G2 gateway is not a transport for this add-on and remains a separate TTLock app/cloud path.
 - Simultaneous access from the G2, TTLock app, and this add-on may cause Bluetooth contention or failed operations.
 
@@ -101,7 +103,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.38 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.43 \
   ./tt-lockstar-ha-intergration
 ```
 
@@ -114,7 +116,7 @@ Building an image does not validate Bluetooth behavior. Final testing must occur
 - Lock pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in backups. Protect both.
 - Do not expose the add-on API or Ingress service directly to the internet.
 - Native Bluetooth behavior depends on adapter hardware, driver support, signal quality, D-Bus, and host networking.
-- Alpha.30 keeps raw HCI as the default and retains the native `bluez` option. Native BlueZ removes only the target's host-unpaired cache after disconnect so each wake can provide a fresh connection object; host-paired devices are preserved. It also keeps discovery active for command connections and shortens only the safely bounded native retry path. These latency changes still require supervised physical validation.
+- Raw HCI remains the default and the native `bluez` option remains available. Native BlueZ removes only the target's host-unpaired cache after disconnect so each wake can provide a fresh connection object; host-paired devices are preserved. It also keeps discovery active for command connections and shortens only the safely bounded native retry path. These latency changes still require supervised physical validation.
 - The image installs both transports, compiles the raw-HCI native binding, explicitly builds the pinned TTLock SDK commit, and then runs the fail-closed patch step.
 - `npm audit --omit=dev` reports 7 moderate, 7 high, and 2 critical findings. Most high/critical findings are inherited through the legacy raw-HCI build/install dependency chain. There is no safe automatic upgrade for the pinned runtime; keep the add-on local-only and do not use `npm audit fix --force`.
 - Generated frontend assets are committed because the Home Assistant add-on image copies the prebuilt interface.

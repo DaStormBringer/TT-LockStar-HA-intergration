@@ -8,6 +8,9 @@ configuration:
   esphome_proxy_hosts:
     name: "ESPHome Bluetooth Proxy Hosts"
     description: "Comma-separated local ESPHome native API endpoints, for example 192.168.1.30:6053,192.168.1.55:6053. Used only by esphome_proxy."
+  esphome_advertisement_source:
+    name: "ESPHome Advertisement Source"
+    description: "Use home_assistant to share Home Assistant's Bluetooth feed (recommended), or direct only for legacy diagnostics that dedicate the proxies to TT LockStar."
   gateway:
     name: "Bluetooth Gateway"
     description: "The Bluetooth gateway mode to use. Select 'none' to use the local Bluetooth adapter."

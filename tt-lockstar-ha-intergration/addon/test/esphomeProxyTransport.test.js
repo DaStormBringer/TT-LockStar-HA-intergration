@@ -23,6 +23,7 @@ const {
   EsphomeProxyBluetoothLeService,
   EsphomeProxyCharacteristic,
   EsphomeProxyDevice,
+  EsphomeProxyScanner,
   buildProxyManufacturerData,
   propertyMaskToNames,
 } = require('../src/esphomeProxyTransport');
@@ -128,4 +129,41 @@ test('accepts an exact paired-lock MAC when the ESPHome advertisement omits serv
     address: 'AA:BB:CC:DD:EE:FF',
     serviceUuids: [],
   }), false);
+});
+
+test('maps a Home Assistant advertisement to its ESPHome proxy before discovery', async () => {
+  const scanner = Object.create(EsphomeProxyScanner.prototype);
+  EventEmitter.call(scanner);
+  scanner.uuids = ['1910'];
+  scanner.devices = new Map();
+  scanner.scanning = true;
+  scanner.setTargetAddresses(['DC:47:11:85:94:2F']);
+  const observations = [];
+  scanner.bridge = {
+    noteAdvertisement: async device => {
+      observations.push(device);
+      return { proxy: 'craft-door-proxy' };
+    },
+  };
+  let discovered;
+  scanner.on('discover', device => { discovered = device; });
+
+  await scanner._onAdvertisement({
+    transport: 'home_assistant',
+    proxy: 'EC:C9:FF:8F:AE:82',
+    device: {
+      address: 'DC:47:11:85:94:2F',
+      address_type: null,
+      name: 'M302_2f9485',
+      rssi: -65,
+      source: 'EC:C9:FF:8F:AE:82',
+      service_uuids: ['00001910-0000-1000-8000-00805f9b34fb'],
+      service_data: {},
+      manufacturer_data: {},
+    },
+  });
+
+  assert.equal(observations.length, 1);
+  assert.equal(discovered.lastProxy, 'craft-door-proxy');
+  assert.equal(discovered.rssi, -65);
 });

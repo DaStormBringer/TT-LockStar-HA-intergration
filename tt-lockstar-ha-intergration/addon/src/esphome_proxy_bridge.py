@@ -111,6 +111,7 @@ class Proxy:
     port: int
     client: APIClient | None = None
     name: str = ""
+    source: str = ""
     connected: bool = False
     feature_flags: int = 0
     free: int = 0
@@ -123,6 +124,7 @@ class Proxy:
         return {
             "endpoint": self.endpoint,
             "name": self.name or self.host,
+            "source": self.source,
             "connected": self.connected,
             "feature_flags": self.feature_flags,
             "free": self.free,
@@ -131,8 +133,9 @@ class Proxy:
 
 
 class Bridge:
-    def __init__(self, endpoints: list[str]) -> None:
+    def __init__(self, endpoints: list[str], advertisement_source: str = "home_assistant") -> None:
         self.proxies = [Proxy(endpoint, *parse_endpoint(endpoint)) for endpoint in endpoints]
+        self.advertisement_source = advertisement_source
         self.output_lock = asyncio.Lock()
         self.tasks: list[asyncio.Task[Any]] = []
         self.active: dict[int, Proxy] = {}
@@ -199,6 +202,9 @@ class Bridge:
                 await client.connect(on_stop=on_stop, login=True, log_errors=False)
                 info = await client.device_info()
                 proxy.name = info.name
+                proxy.source = str(
+                    info.bluetooth_mac_address or info.mac_address or ""
+                ).upper()
                 proxy.feature_flags = int(info.bluetooth_proxy_feature_flags)
                 required = int(
                     BluetoothProxyFeature.ACTIVE_CONNECTIONS
@@ -270,31 +276,35 @@ class Bridge:
                         "allocated": [int_to_mac(address) for address in allocated],
                     }))
 
-                raw_advertisements = int(BluetoothProxyFeature.RAW_ADVERTISEMENTS)
-                if proxy.feature_flags & raw_advertisements:
-                    advertisement_unsubscriber = client.subscribe_bluetooth_le_raw_advertisements(
-                        on_raw_advertisements
-                    )
-                    advertisement_format = "raw batches"
-                else:
-                    advertisement_unsubscriber = client.subscribe_bluetooth_le_advertisements(
-                        on_advertisement
-                    )
-                    advertisement_format = "parsed messages"
                 proxy.unsubscribers = [
-                    advertisement_unsubscriber,
                     client.subscribe_bluetooth_connections_free(on_connections_free),
                 ]
+                if self.advertisement_source == "direct":
+                    raw_advertisements = int(BluetoothProxyFeature.RAW_ADVERTISEMENTS)
+                    if proxy.feature_flags & raw_advertisements:
+                        advertisement_unsubscriber = client.subscribe_bluetooth_le_raw_advertisements(
+                            on_raw_advertisements
+                        )
+                        advertisement_format = "direct raw batches"
+                    else:
+                        advertisement_unsubscriber = client.subscribe_bluetooth_le_advertisements(
+                            on_advertisement
+                        )
+                        advertisement_format = "direct parsed messages"
+                    proxy.unsubscribers.insert(0, advertisement_unsubscriber)
+                else:
+                    advertisement_format = "advertisements via Home Assistant"
 
                 # TTLock wake advertisements may be too short to discover reliably with
-                # passive scanning. Assert active mode after claiming the single proxy
-                # subscription so older ESPHome firmware applies it to this client.
+                # passive scanning. Scanner mode control does not claim ESPHome's single
+                # advertisement subscription, which remains owned by Home Assistant.
                 client.bluetooth_scanner_set_mode(BluetoothScannerMode.ACTIVE)
                 proxy.connected = True
                 delay = 1.0
                 log(
                     f"connected to {proxy.name} at {proxy.endpoint}; "
-                    f"Bluetooth proxy flags={proxy.feature_flags}; {advertisement_format}; "
+                    f"Bluetooth source={proxy.source or 'unknown'}; "
+                    f"proxy flags={proxy.feature_flags}; {advertisement_format}; "
                     "active scanning requested"
                 )
                 await self.emit({"type": "proxy_state", "proxy": proxy.summary()})
@@ -357,6 +367,28 @@ class Bridge:
             key=score,
             reverse=True,
         )
+
+    def observe_advertisement(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Record Home Assistant's scanner-specific observation for proxy selection."""
+        address = mac_to_int(request["address"])
+        source = str(request.get("source") or "").upper()
+        rssi = int(request.get("rssi", -127))
+        address_type = int(request.get("address_type") or 0)
+        proxy = next(
+            (
+                item
+                for item in self.proxies
+                if source and source in {item.source.upper(), item.name.upper(), item.endpoint.upper()}
+            ),
+            None,
+        )
+        if proxy:
+            proxy.advertisements[address] = (time.monotonic(), rssi, address_type)
+        return {
+            "proxy": proxy.name if proxy else None,
+            "source": source,
+            "matched": proxy is not None,
+        }
 
     async def connect_device(self, request: dict[str, Any]) -> dict[str, Any]:
         address = mac_to_int(request["address"])
@@ -429,6 +461,8 @@ class Bridge:
         action = request.get("action")
         if action == "status":
             return [proxy.summary() for proxy in self.proxies]
+        if action == "observe":
+            return self.observe_advertisement(request)
         if action == "connect":
             return await self.connect_device(request)
 
@@ -564,7 +598,14 @@ async def main() -> None:
     ]
     if not endpoints:
         raise SystemExit("TTLOCK_ESPHOME_PROXY_HOSTS is empty")
-    bridge = Bridge(endpoints)
+    advertisement_source = os.environ.get(
+        "TTLOCK_ESPHOME_ADVERTISEMENT_SOURCE", "home_assistant"
+    ).strip().lower()
+    if advertisement_source not in {"home_assistant", "direct"}:
+        raise SystemExit(
+            "TTLOCK_ESPHOME_ADVERTISEMENT_SOURCE must be home_assistant or direct"
+        )
+    bridge = Bridge(endpoints, advertisement_source)
     await bridge.start()
     try:
         await bridge.run_requests()

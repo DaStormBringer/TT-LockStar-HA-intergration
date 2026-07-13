@@ -116,6 +116,39 @@ class RawAdvertisementTests(unittest.TestCase):
         self.assertEqual(client.callback_removals, 1)
         self.assertIn((address, 12), bridge.notification_stops)
 
+    def test_routes_home_assistant_observation_to_matching_proxy(self):
+        craft = Proxy(
+            "192.168.1.238:6053",
+            "192.168.1.238",
+            6053,
+            name="craft-door-proxy",
+            source="EC:C9:FF:8F:AE:82",
+            connected=True,
+        )
+        bedroom = Proxy(
+            "192.168.1.55:6053",
+            "192.168.1.55",
+            6053,
+            name="bedroom-proxy",
+            source="1C:69:20:3F:D9:C8",
+            connected=True,
+        )
+        bridge = Bridge([])
+        bridge.proxies = [craft, bedroom]
+
+        result = bridge.observe_advertisement({
+            "address": "DC:47:11:85:94:2F",
+            "source": "EC:C9:FF:8F:AE:82",
+            "rssi": -65,
+            "address_type": 0,
+        })
+
+        address = mac_to_int("DC:47:11:85:94:2F")
+        self.assertTrue(result["matched"])
+        self.assertEqual(result["proxy"], "craft-door-proxy")
+        self.assertEqual(craft.advertisements[address][1:], (-65, 0))
+        self.assertNotIn(address, bedroom.advertisements)
+
 
 if __name__ == "__main__":
     unittest.main()

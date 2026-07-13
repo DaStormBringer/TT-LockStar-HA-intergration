@@ -18,6 +18,7 @@ You can customize the add-on behavior under the **Configuration** tab in the Hom
 bluetooth_adapter: "hci0" # The Bluetooth device ID to use (e.g. hci0, hci1, 0, or 1)
 bluetooth_transport: "raw_hci" # Validated fallback; bluez bypasses Noble for supervised experiments
 esphome_proxy_hosts: "" # For esphome_proxy: comma-separated local native API endpoints
+esphome_advertisement_source: "home_assistant" # Share HA's Bluetooth feed; direct is legacy diagnostic mode
 ignore_crc: false # Set to true to ignore bad CRC checksums from older TTLock models
 debug_communication: false # Set to true to log detailed raw BLE traffic for debugging
 debug_mqtt: false # Set to true to log MQTT discovery and state messages
@@ -32,7 +33,7 @@ debug_mqtt: false # Set to true to log MQTT discovery and state messages
 - **G2 gateway is separate**: Updating or continuing to use a TTLock G2 gateway is fine, but this local add-on does not communicate through the G2. It requires a Bluetooth adapter directly available to the Home Assistant host.
 - **Transport choice**: `raw_hci` is the default because it completed the supervised alpha.13 lock/unlock test. `bluez` is the native BlueZ D-Bus experiment and bypasses Noble. `dbus` retains the older Noble-backed D-Bus implementation for comparison.
 - **ESPHome proxy transport**: Select `esphome_proxy` and set `esphome_proxy_hosts` to one or more local endpoints such as `192.168.1.30:6053,192.168.1.55:6053`. The bridge requests active scanning and automatically chooses the proxy with a recent lock advertisement, available connection capacity, and the strongest signal. This stays local and does not use TTLock Cloud.
-- **Dedicated proxy requirement**: ESPHome routes Bluetooth proxy traffic to one native-API subscriber at a time. Every endpoint listed in `esphome_proxy_hosts` is dedicated to TT LockStar while this add-on runs; Home Assistant Core will not receive Bluetooth advertisements through those proxies at the same time. List only proxies you are willing to dedicate.
+- **Shared Home Assistant advertisement feed**: The default `home_assistant` source subscribes to Home Assistant's supported Bluetooth WebSocket stream. Home Assistant remains ESPHome's advertisement subscriber while TT LockStar uses separate native API clients for active scan mode and GATT. Use the legacy `direct` source only for bounded diagnostics because it can displace Home Assistant's proxy stream.
 - **ESPHome proxy features**: Each configured endpoint must support scanner state/mode control, active connections, and remote GATT caching.
 - **ESPHome API authentication**: Alpha.32 supports proxies with no native API password or Noise encryption key. Keep the endpoints on a trusted local network. Credential support is required before using encrypted ESPHome API configurations.
 - **Adapter contention**: Raw HCI needs direct adapter ownership. Other software using the same adapter can interfere with commands; dedicate an adapter to this add-on when possible.
