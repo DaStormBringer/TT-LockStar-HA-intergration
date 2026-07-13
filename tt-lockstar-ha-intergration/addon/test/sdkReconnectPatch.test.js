@@ -15,6 +15,7 @@ const {
   patchNobleEntrypoint,
   patchNobleDevice,
   patchNobleDbusStateCache,
+  patchNobleDbusDuplicateDiscovery,
   patchNobleScanner,
   patchTargetedCommandDiscovery,
   patchTargetedNobleDiscovery,
@@ -75,6 +76,35 @@ test('keeps the BlueZ D-Bus object cache synchronized across disconnects', () =>
   assert.match(patched, /Connected: false/);
   assert.match(patched, /ServicesResolved: false/);
   assert.equal(patchNobleDbusStateCache(patched), patched);
+});
+
+test('bridges BlueZ duplicate property updates into Noble discovery events', () => {
+  const source = `        if (unwrapped[DEVICE_IFACE] && this._isUnderAdapter(path)) {
+          const address = unwrapped[DEVICE_IFACE].Address || devicePathToAddress(path);
+          if (address && this._devices.has(addressToId(address))) continue;
+          this._handleDeviceProps(path, unwrapped[DEVICE_IFACE]);
+        }
+    this.emit(
+      'discover',
+      id,
+      device.address,
+      device.addressType,
+      device.connectable,
+      device.advertisement,
+      device.rssi,
+      device.scannable
+    );
+  }
+      this._objects.set(device.path, stored);
+      if ('RSSI' in c) {`;
+
+  const patched = patchNobleDbusDuplicateDiscovery(source);
+
+  assert.match(patched, /TT_LOCKSTAR_DBUS_DUPLICATE_DISCOVERY/);
+  assert.match(patched, /this\._ensureDeviceProxy\(id\)/);
+  assert.match(patched, /advertisementKeys\.some/);
+  assert.equal((patched.match(/'discover'/g) || []).length, 2);
+  assert.equal(patchNobleDbusDuplicateDiscovery(patched), patched);
 });
 
 test('uses a shorter Bluetooth setup path for command-only connections', () => {
@@ -150,6 +180,7 @@ test('fails closed when the expected SDK code is not present', () => {
   assert.throws(() => patchNobleEntrypoint('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDevice('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDbusStateCache('unexpected source'), /expected one match/);
+  assert.throws(() => patchNobleDbusDuplicateDiscovery('unexpected source'), /expected one match/);
   assert.throws(() => patchFastCommandDeviceConnect('unexpected source'), /expected one match/);
   assert.throws(() => patchFastCommandLockConnect('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleScanner('unexpected source'), /expected one match/);
