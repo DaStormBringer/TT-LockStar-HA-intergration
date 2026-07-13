@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.34] - 2026-07-12
+
+- Subscribe to ESPHome raw advertisement batches when the proxy advertises that feature, with a parsed-message fallback for older proxies.
+- Decode standard BLE advertisement fields locally, including 16/32/128-bit service UUIDs, names, service data, and manufacturer data.
+- Request active scan mode after claiming the proxy's single Bluetooth subscription for compatibility with the deployed ESPHome firmware.
+- Add a regression test built from the captured M302 wake packet.
+- Record the sole-subscriber capture: the Living Room proxy received five M302 packets at approximately -81 to -79 dBm; the Master Bedroom proxy delivered no packets during that window.
+
 ## [0.1.0-alpha.33] - 2026-07-12
 
 - Accept an ESPHome advertisement from the exact MAC address of a stored paired lock even when the packet omits TTLock service UUID `1910`.

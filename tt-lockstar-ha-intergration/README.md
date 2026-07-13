@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.33`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.34`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -60,6 +60,8 @@ Alpha.31 adds a fully local `esphome_proxy` transport. A small Python bridge use
 Alpha.32 follows the first deployed read-only test, where an M302 keypad wake was not observed after the add-on reclaimed the proxy subscriptions. It explicitly requests active scanning on every proxy connection and documents that ESPHome's newest Bluetooth API subscriber owns the proxy stream. This remains a discovery fix awaiting the next live wake test; it is not a successful lock-operation claim.
 
 Alpha.33 addresses the next deployed wake test: active scanning was requested successfully, but the paired M302 still did not reach the TTLock matcher. ESPHome advertisements from the exact stored paired-lock MAC are now accepted even when service UUID `1910` is absent; UUID filtering remains mandatory for unknown addresses. This is awaiting another live wake test and is not a lock-operation claim.
+
+Alpha.34 follows a synchronized sole-subscriber capture. The deployed ESPHome firmware rejected a second Bluetooth subscriber, so the add-on was stopped for the bounded diagnostic. The Living Room proxy then received five M302 wake packets at approximately -81 to -79 dBm, while the Master Bedroom proxy delivered no packets. The packets arrived through ESPHome's raw-advertisement batch message and contained the paired MAC, UUID `1910`, M302 name, manufacturer data, and service data. Alpha.34 consumes that raw format and decodes it locally. No lock command was sent, and this remains awaiting a deployed metadata session.
 
 The installed alpha.16 image completed a supervised open-door physical cycle. Unlock returned `true` on the first manager attempt, the bolt retracted, and Home Assistant changed to `unlocked`. An immediate relock then failed: attempt 1 hit the 55-second hard timeout and attempts 2–3 could not connect, leaving the bolt physically retracted. Restarting only this add-on cleared Noble's stale raw-HCI session; the following lock returned `true` on its first manager attempt, extended the bolt, and changed Home Assistant to `locked`. Raw HCI can operate the lock, but sequential command recovery remains a blocking reliability defect.
 
