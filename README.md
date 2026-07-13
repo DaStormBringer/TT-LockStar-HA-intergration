@@ -15,7 +15,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.44`
+- Add-on version: `0.1.0-alpha.45`
 - Home Assistant stage: `experimental`
 - Development branch: `main`
 - Target: Home Assistant on Linux
@@ -26,7 +26,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 - Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ also has one physically verified round trip without an add-on restart: unlock completed in 4.32 seconds; the immediate lock used its bounded second attempt and completed in 9.17 seconds. The user confirmed both bolt movements at the door. This is promising single-device evidence, not unattended-use qualification.
 - Production readiness: **not ready**
 
-Compatibility is claimed only for the user's M302 lock running its currently installed firmware. The current SDK metadata exposes the firmware as `unknown`; no other lock model or M302 firmware is claimed as tested until alpha.44's dedicated read-only firmware request returns that exact value from the lock.
+Compatibility is claimed only for the user's M302 lock running its currently installed firmware. The current SDK metadata exposes the firmware as `unknown`; no other lock model or M302 firmware is claimed as tested until alpha.45's dedicated read-only firmware request returns that exact value from the lock.
 
 The source repository may be stored or edited on Windows, but the deployable add-on image is Linux-native and was built with Docker Desktop's Linux engine.
 

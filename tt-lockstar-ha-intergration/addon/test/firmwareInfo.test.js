@@ -16,9 +16,13 @@ test('firmware revision uses one read-only command over a command-only connectio
   const address = 'DC:47:11:85:94:2F';
   const originalPairedLocks = manager.pairedLocks;
   const originalConnectLock = manager._connectLock;
+  const originalConnectQueue = manager.connectQueue;
+  const originalReservations = manager.firmwareReadReservations;
   t.after(() => {
     manager.pairedLocks = originalPairedLocks;
     manager._connectLock = originalConnectLock;
+    manager.connectQueue = originalConnectQueue;
+    manager.firmwareReadReservations = originalReservations;
   });
 
   let requestedInfoType;
@@ -30,9 +34,14 @@ test('firmware revision uses one read-only command over a command-only connectio
     },
   };
   manager.pairedLocks = new Map([[address, lock]]);
+  manager.connectQueue = new Set([address]);
+  manager.firmwareReadReservations = new Set();
+  lock._ttLockstarLastAdvertisementAt = Date.now();
   manager._connectLock = async (candidate, readData) => {
     assert.equal(candidate, lock);
     assert.equal(readData, false);
+    assert.equal(manager.firmwareReadReservations.has(address), true);
+    assert.equal(manager.connectQueue.has(address), false);
     return true;
   };
 
@@ -47,6 +56,7 @@ test('firmware revision uses one read-only command over a command-only connectio
     gattFirmware: 'unknown',
     readOnly: true,
   });
+  assert.equal(manager.firmwareReadReservations.has(address), false);
 });
 
 test('firmware response has a dedicated websocket message type', async () => {
