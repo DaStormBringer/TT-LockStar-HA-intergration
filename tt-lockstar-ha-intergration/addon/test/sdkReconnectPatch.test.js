@@ -8,6 +8,7 @@ const {
   patchCommandConnectState,
   patchDbusCommandPacing,
   patchEsphomeAtomicWrite,
+  patchAdminUnlock,
   patchFastCommandDeviceConnect,
   patchFastCommandLockConnect,
   patchDeadboltStatusQuery,
@@ -217,10 +218,33 @@ test('batches ESPHome multipart writes into one bridge request', () => {
   assert.equal(patchEsphomeAtomicWrite(patched), patched);
 });
 
+test('uses TTLock administrator authentication only for admin unlocks', () => {
+  const source = `    async unlock() {
+        if (!this.isConnected()) {
+            throw new Error("Lock is not connected");
+        }
+        if (!this.initialized) {
+            throw new Error("Lock is in pairing mode");
+        }
+        try {
+            console.log("========= check user time");
+            const psFromLock = await this.checkUserTime();
+            console.log("========= check user time", psFromLock);
+            console.log("========= unlock");`;
+
+  const patched = patchAdminUnlock(source);
+
+  assert.match(patched, /TT_LOCKSTAR_ADMIN_UNLOCK/);
+  assert.match(patched, /hasAdminPassword[\s\S]*this\.checkAdminCommand\(\)/);
+  assert.match(patched, /: await this\.checkUserTime\(\)/);
+  assert.equal(patchAdminUnlock(patched), patched);
+});
+
 test('fails closed when the expected SDK code is not present', () => {
   assert.throws(() => patchCommandConnectState('unexpected source'), /expected one match/);
   assert.throws(() => patchDbusCommandPacing('unexpected source'), /expected one match/);
   assert.throws(() => patchEsphomeAtomicWrite('unexpected source'), /expected one match/);
+  assert.throws(() => patchAdminUnlock('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleEntrypoint('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDevice('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDbusStateCache('unexpected source'), /expected one match/);
