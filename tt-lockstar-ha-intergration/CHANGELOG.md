@@ -7,7 +7,8 @@
 - Use command-only BLE sessions for individual reads, settings, credentials, and log operations instead of performing a full metadata refresh first.
 - Cache a successfully discovered ESPHome GATT service table and MTU within the bridge process, reuse ESPHome's cached-connect mode on later sessions, and invalidate/retry uncached if a cached connection or handle fails.
 - Add authenticated-command phase timing without skipping TTLock authentication, response validation, notification registration, or physical-state verification.
-- Pass 82 JavaScript tests and 7 ESPHome bridge tests. The GATT-cache latency change remains pending supervised measurement on the physical M302.
+- Pass 82 JavaScript tests and 7 ESPHome bridge tests.
+- Validate the cached GATT path on the physical M302: a supervised unlock connected in 2.019 seconds, completed its authenticated command phase in 624 milliseconds, returned success in 7.853 seconds total, and was physically confirmed. This single sample does not establish a latency improvement over alpha.47.
 
 ## [0.1.0-alpha.47] - 2026-07-13
 
