@@ -197,7 +197,10 @@ function patchEsphomeAtomicWrite(source) {
                 fragments.push(data.subarray(index, index + Math.min(MTU, data.length - index)));
                 index += MTU;
             }
-            const written = await characteristic.writeFragments(fragments, true, 20);
+            // ESPHome's no-response API call confirms only that the fragment was
+            // queued to the proxy, not that the lock consumed it. Give each BLE
+            // fragment one connection interval to drain before queuing the next.
+            const written = await characteristic.writeFragments(fragments, true, 100);
             if (written) {
                 fragments.forEach((fragment, fragmentIndex) => {
                     console.log(\`[Bluetooth][GATT] command fragment \${fragmentIndex + 1}/\${fragments.length} accepted (\${fragment.length} bytes)\`);

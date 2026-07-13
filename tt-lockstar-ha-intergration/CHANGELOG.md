@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.40] - 2026-07-13
+
+- Pace ESPHome multipart write-without-response fragments at 100 ms instead of 20 ms. The ESPHome API acknowledges only local queueing for this write type, so the added interval gives the proxy time to transmit one fragment before accepting the next.
+- Preserve the single ordered Node-to-bridge request, authenticated `CHECK_USER_TIME` lock flow, administrator unlock flow, response validation, two-attempt limit, and fail-closed behavior.
+- Record alpha.39's supervised lock failure: both attempts connected in under 1.4 seconds but disconnected while waiting for the `CHECK_USER_TIME` response; the user confirmed that the bolt remained unlocked.
+- Record the comparison phone-app lock: the same M302 locked successfully, and its advertisements transitioned from `newEvents: true` to `lockedStatus: true`, confirming the actuator and ESPHome observation path while isolating the failure to the add-on's outbound GATT exchange.
+
 ## [0.1.0-alpha.39] - 2026-07-13
 
 - Revert only alpha.38's administrator-authentication change for locking: lock again uses the pinned SDK's `CHECK_USER_TIME` path, while the physically validated administrator unlock continues to use `CHECK_ADMIN`.
