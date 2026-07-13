@@ -7,6 +7,8 @@ const DEFAULT_CLEANUP_TIMEOUT_MS = 1500;
 const DEFAULT_ADVERTISEMENT_FRESHNESS_MS = 10000;
 const DEFAULT_ADVERTISEMENT_WAIT_MS = 6000;
 const DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS = 15000;
+const DEFAULT_COMMAND_RETRY_DELAY_MS = 1500;
+const NATIVE_BLUEZ_COMMAND_RETRY_DELAY_MS = 100;
 const LAST_ADVERTISEMENT_PROPERTY = '_ttLockstarLastAdvertisementAt';
 const RETRY_SAFE_PROPERTY = '_ttLockstarRetrySafe';
 
@@ -90,6 +92,23 @@ async function cancelStaleLockConnection(lock, cleanupTimeoutMs = DEFAULT_CLEANU
 
 function isConnectionRetrySafe(lock) {
   return !lock || lock[RETRY_SAFE_PROPERTY] !== false;
+}
+
+function shouldStopMonitorBeforeConnect(
+  transport = process.env.TTLOCK_BLUETOOTH_TRANSPORT,
+) {
+  // Native BlueZ can connect while discovery remains active. Avoiding a
+  // StopDiscovery -> Device1.Connect transition removes an adapter race that
+  // repeatedly cost the first command attempt on the test hardware.
+  return transport !== 'bluez';
+}
+
+function getCommandRetryDelayMs(
+  transport = process.env.TTLOCK_BLUETOOTH_TRANSPORT,
+) {
+  return transport === 'bluez'
+    ? NATIVE_BLUEZ_COMMAND_RETRY_DELAY_MS
+    : DEFAULT_COMMAND_RETRY_DELAY_MS;
 }
 
 function markLockAdvertisement(lock, timestamp = Date.now()) {
@@ -177,6 +196,8 @@ module.exports = {
   DEFAULT_ADVERTISEMENT_FRESHNESS_MS,
   DEFAULT_ADVERTISEMENT_WAIT_MS,
   DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
+  DEFAULT_COMMAND_RETRY_DELAY_MS,
+  NATIVE_BLUEZ_COMMAND_RETRY_DELAY_MS,
   DEFAULT_COMMAND_CONNECT_TIMEOUT_MS,
   DEFAULT_CLEANUP_TIMEOUT_MS,
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
@@ -187,9 +208,11 @@ module.exports = {
   cancelStaleLockConnection,
   connectWithPolicy,
   getLockAdvertisementAge,
+  getCommandRetryDelayMs,
   isConnectionRetrySafe,
   markLockAndStoredAdvertisement,
   markLockAdvertisement,
   refreshDbusDeviceCache,
+  shouldStopMonitorBeforeConnect,
   waitForFreshLockAdvertisement,
 };

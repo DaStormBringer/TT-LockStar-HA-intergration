@@ -7,6 +7,8 @@ const {
   DEFAULT_ADVERTISEMENT_FRESHNESS_MS,
   DEFAULT_ADVERTISEMENT_WAIT_MS,
   DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
+  DEFAULT_COMMAND_RETRY_DELAY_MS,
+  NATIVE_BLUEZ_COMMAND_RETRY_DELAY_MS,
   DEFAULT_COMMAND_CONNECT_TIMEOUT_MS,
   DEFAULT_CLEANUP_TIMEOUT_MS,
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
@@ -16,10 +18,12 @@ const {
   cancelStaleLockConnection,
   connectWithPolicy,
   getLockAdvertisementAge,
+  getCommandRetryDelayMs,
   isConnectionRetrySafe,
   markLockAndStoredAdvertisement,
   markLockAdvertisement,
   refreshDbusDeviceCache,
+  shouldStopMonitorBeforeConnect,
   waitForFreshLockAdvertisement,
 } = require('../src/connectionPolicy');
 
@@ -27,10 +31,21 @@ test('uses a short command timeout without shortening metadata refreshes', () =>
   assert.equal(DEFAULT_ADVERTISEMENT_FRESHNESS_MS, 10000);
   assert.equal(DEFAULT_ADVERTISEMENT_WAIT_MS, 6000);
   assert.equal(DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS, 15000);
+  assert.equal(DEFAULT_COMMAND_RETRY_DELAY_MS, 1500);
+  assert.equal(NATIVE_BLUEZ_COMMAND_RETRY_DELAY_MS, 100);
   assert.equal(DEFAULT_COMMAND_CONNECT_TIMEOUT_MS, 12000);
   assert.equal(DEFAULT_CLEANUP_TIMEOUT_MS, 1500);
   assert.equal(DEFAULT_FULL_CONNECT_TIMEOUT_MS, 55000);
   assert.ok(DEFAULT_COMMAND_CONNECT_TIMEOUT_MS < DEFAULT_FULL_CONNECT_TIMEOUT_MS);
+});
+
+test('keeps native BlueZ discovery active and retries promptly', () => {
+  assert.equal(shouldStopMonitorBeforeConnect('bluez'), false);
+  assert.equal(shouldStopMonitorBeforeConnect('dbus'), true);
+  assert.equal(shouldStopMonitorBeforeConnect('raw_hci'), true);
+  assert.equal(getCommandRetryDelayMs('bluez'), 100);
+  assert.equal(getCommandRetryDelayMs('dbus'), 1500);
+  assert.equal(getCommandRetryDelayMs('raw_hci'), 1500);
 });
 
 test('marks and measures the newest lock advertisement', () => {

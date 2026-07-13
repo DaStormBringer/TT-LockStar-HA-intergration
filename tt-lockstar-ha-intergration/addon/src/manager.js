@@ -10,9 +10,11 @@ const TTLockClient = process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'bluez'
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
 const {
   connectWithPolicy,
+  getCommandRetryDelayMs,
   isConnectionRetrySafe,
   markLockAndStoredAdvertisement,
   refreshDbusDeviceCache,
+  shouldStopMonitorBeforeConnect,
   waitForFreshLockAdvertisement,
   DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
 } = require('./connectionPolicy');
@@ -867,7 +869,7 @@ class Manager extends EventEmitter {
           }
           console.log(`[Bluetooth][BlueZ] Connecting from an advertisement ${advertisementAge}ms old`);
         }
-        if (wasMonitoring) {
+        if (wasMonitoring && shouldStopMonitorBeforeConnect()) {
           console.log("[Manager] Stopping monitor before connecting to lock...");
           await this.client.stopMonitor();
           if (usesBluezDbus()) {
@@ -875,6 +877,8 @@ class Manager extends EventEmitter {
             // Device1.Connect. Intel adapters can otherwise abort locally.
             await sleep(250);
           }
+        } else if (wasMonitoring) {
+          console.log("[Manager] Native BlueZ command connection is keeping discovery active");
         }
         const connectStartedAt = Date.now();
         console.log(`[Manager] Connecting to ${address} (${readData ? 'full data' : 'command only'})`);
@@ -922,7 +926,7 @@ class Manager extends EventEmitter {
           console.warn(`[Manager] ${operationName} retry suppressed because the cancelled HCI connection did not drain`);
           break;
         }
-        if (attempt < maxRetries) await sleep(1500);
+        if (attempt < maxRetries) await sleep(getCommandRetryDelayMs());
         continue;
       }
 
@@ -940,7 +944,7 @@ class Manager extends EventEmitter {
 
       // Release both the SDK connection and PiexlPuck's mutex before retrying.
       await this.disconnectLock(address);
-      if (attempt < maxRetries) await sleep(1500);
+      if (attempt < maxRetries) await sleep(getCommandRetryDelayMs());
     }
     console.log(`[Manager] ${operationName} command failed after ${Date.now() - operationStartedAt}ms`);
     return false;

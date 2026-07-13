@@ -13,9 +13,9 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.29`
+- Add-on version: `0.1.0-alpha.30`
 - Home Assistant stage: `experimental`
-- Development branch: `codex/bluez-hardware-validation-alpha29`
+- Development branch: `codex/faster-native-bluez-alpha30`
 - Target: Home Assistant on Linux
 - Verified image: Home Assistant Alpine Linux, `amd64`
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
@@ -96,7 +96,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.29 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.30 \
   ./tt-lockstar-ha-intergration
 ```
 
@@ -109,7 +109,7 @@ Building an image does not validate Bluetooth behavior. Final testing must occur
 - Lock pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in backups. Protect both.
 - Do not expose the add-on API or Ingress service directly to the internet.
 - Native Bluetooth behavior depends on adapter hardware, driver support, signal quality, D-Bus, and host networking.
-- Alpha.29 keeps raw HCI as the default and retains the native `bluez` option. Native BlueZ removes only the target's host-unpaired cache after disconnect so each wake can provide a fresh connection object; host-paired devices are preserved. One supervised native BlueZ unlock/lock round trip is physically confirmed, but repeated-cycle reliability has not been established.
+- Alpha.30 keeps raw HCI as the default and retains the native `bluez` option. Native BlueZ removes only the target's host-unpaired cache after disconnect so each wake can provide a fresh connection object; host-paired devices are preserved. It also keeps discovery active for command connections and shortens only the safely bounded native retry path. These latency changes still require supervised physical validation.
 - The image installs both transports, compiles the raw-HCI native binding, explicitly builds the pinned TTLock SDK commit, and then runs the fail-closed patch step.
 - `npm audit --omit=dev` reports 7 moderate, 7 high, and 2 critical findings. Most high/critical findings are inherited through the legacy raw-HCI build/install dependency chain. There is no safe automatic upgrade for the pinned runtime; keep the add-on local-only and do not use `npm audit fix --force`.
 - Generated frontend assets are committed because the Home Assistant add-on image copies the prebuilt interface.

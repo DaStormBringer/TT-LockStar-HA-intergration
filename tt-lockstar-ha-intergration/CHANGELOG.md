@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.30] - 2026-07-12
+
+- Record a second physically confirmed native BlueZ round trip: after a keypad wake, unlock completed in 7.04 seconds and the immediate lock completed in 9.34 seconds; both succeeded on their second connection attempt.
+- Keep native BlueZ discovery active while starting a command connection, avoiding the StopDiscovery-to-Connect adapter transition that repeatedly consumed the first attempt on the test hardware.
+- Reduce the native BlueZ retry pause from 1.5 seconds to 100 ms after a connection is safely drained.
+- Reduce only the native command-level BlueZ connection timeout from 6 seconds to 4.5 seconds; authenticated command/response handling and the two-attempt limit are unchanged.
+- Leave raw HCI and Noble-backed D-Bus timing policies unchanged.
+
 ## [0.1.0-alpha.29] - 2026-07-12
 
 - Record the first physically verified native BlueZ round trip on the front-door lock: unlock completed in 4.32 seconds and the user confirmed the bolt retracted.

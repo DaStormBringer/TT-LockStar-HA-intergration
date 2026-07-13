@@ -415,7 +415,7 @@ function patchFastCommandLockConnect(source) {
             // command-only policy through to the Bluetooth setup layer.
             connected = await this.device.connect(
                 this.skipDataRead,
-                this.skipDataRead ? 6 : 40,
+                this.skipDataRead ? 4.5 : 40,
             );`,
     'TTLock command-only device connect propagation',
   );

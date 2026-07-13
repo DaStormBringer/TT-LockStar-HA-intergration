@@ -158,7 +158,7 @@ test('uses a shorter Bluetooth setup path for command-only connections', () => {
   assert.match(patchedDevice, /device\.connect\(connectTimeoutSeconds\)/);
   assert.match(patchedDevice, /if \(skipDeviceInfo\)/);
   assert.match(patchedLock, /TT_LOCKSTAR_FAST_COMMAND_LOCK_CONNECT/);
-  assert.match(patchedLock, /this\.skipDataRead \? 6 : 40/);
+  assert.match(patchedLock, /this\.skipDataRead \? 4\.5 : 40/);
   assert.match(patchedLock, /maxRetries = this\.skipDataRead \? 1 : 5/);
   assert.equal(patchFastCommandDeviceConnect(patchedDevice), patchedDevice);
   assert.equal(patchFastCommandLockConnect(patchedLock), patchedLock);
