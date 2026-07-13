@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.49] - 2026-07-13
+
+- Add optional top-level string or numeric `requestId` correlation to generic `capabilities` and `command` requests, their direct replies, and command errors. Legacy clients that omit the field retain the existing response shape.
+- Keep asynchronous `status` and `lockStatus` broadcasts uncorrelated so clients can distinguish them from the requested terminal reply.
+- Log connection-mutex waits and fresh-advertisement waits separately from BLE connection and authenticated-command timing.
+- Correct the stale README statement that described alpha.48 cached-GATT hardware timing as pending.
+- Pass 85 JavaScript tests and 7 ESPHome bridge tests in the built `amd64` alpha.49 image; verify the packaged SDK remains 0.3.34 with 40 exposed commands.
+- Leave advertisement freshness, retry, authentication, command payload, response validation, and disconnect behavior unchanged. No physical command is required to validate this release build.
+
 ## [0.1.0-alpha.48] - 2026-07-13
 
 - Add a capability-discoverable WebSocket command API covering the complete supported high-level operation surface of the pinned TTLock SDK: state evidence, device information, time, auto-lock, audio, passage mode, remote-unlock configuration, credentials, logs, pairing, reset, and physical lock/unlock.

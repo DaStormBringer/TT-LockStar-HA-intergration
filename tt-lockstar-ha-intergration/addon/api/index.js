@@ -54,15 +54,15 @@ module.exports = async (server) => {
             break;
 
           case "capabilities":
-            api.sendCapabilities(commandApi.getCapabilities());
+            api.sendCapabilities(commandApi.getCapabilities(), msg.getRequestId());
             break;
 
           case "command":
             try {
-              api.sendCommandResult(await commandApi.execute(msg.data));
+              api.sendCommandResult(await commandApi.execute(msg.data), msg.getRequestId());
             } catch (error) {
               console.error("Command API error:", error);
-              api.sendError(error.message, msg);
+              api.sendError(error.message, msg, msg.getRequestId());
             }
             break;
 

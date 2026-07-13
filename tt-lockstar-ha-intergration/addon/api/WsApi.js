@@ -132,27 +132,37 @@ class WsApi {
     this.ws.send(message.toJSON());
   }
 
-  async sendCapabilities(capabilities) {
+  async sendCapabilities(capabilities, requestId) {
     const message = new Message();
     message.setType("capabilities");
     message.setData({ commands: capabilities });
+    message.setRequestId(requestId);
     this.ws.send(message.toJSON());
   }
 
-  async sendCommandResult(result) {
+  async sendCommandResult(result, requestId) {
     const message = new Message();
     message.setType("command");
     message.setData(result);
+    message.setRequestId(requestId);
     this.ws.send(message.toJSON());
   }
 
-  async sendError(error, originalMessage) {
+  async sendError(error, originalMessage, requestId) {
     const message = new Message();
     message.setType("error");
     message.setData({
       message: error,
       originalMessage: originalMessage
     });
+    if (
+      typeof requestId === "undefined"
+      && originalMessage
+      && typeof originalMessage.getRequestId === "function"
+    ) {
+      requestId = originalMessage.getRequestId();
+    }
+    message.setRequestId(requestId);
     this.ws.send(message.toJSON());
   }
 

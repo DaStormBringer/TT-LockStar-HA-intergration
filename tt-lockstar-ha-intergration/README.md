@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.48`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.49`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -59,7 +59,7 @@ Detailed per-release changes and supervised hardware-test results are maintained
 - Lock clock read and synchronization controls
 - MQTT discovery for lock state, battery, signal strength, and lock time
 - BLE connection serialization and retry handling
-- Process-local ESPHome GATT service/MTU caching with automatic uncached recovery; alpha.48 hardware timing is still pending
+- Process-local ESPHome GATT service/MTU caching with automatic uncached recovery; the alpha.48 cached path completed a physically confirmed unlock, although its single timing sample did not improve on alpha.47
 
 ## Recommended first test
 

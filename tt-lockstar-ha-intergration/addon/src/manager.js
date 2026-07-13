@@ -1144,9 +1144,15 @@ class Manager extends EventEmitter {
   async _connectLock(lock, readData = true) {
     if (this.scanning) return false;
     const address = lock.getAddress();
+    const mutexWaitStartedAt = Date.now();
+    let waitedForMutex = false;
     while (this.lockMutexes.has(address)) {
+      waitedForMutex = true;
       console.log(`[Manager] Connection for ${address} is busy, waiting...`);
       await this.lockMutexes.get(address).promise;
+    }
+    if (waitedForMutex) {
+      console.log(`[Timing] ${address} connection mutex wait completed after ${Date.now() - mutexWaitStartedAt}ms`);
     }
     let resolveLock;
     const promise = new Promise(resolve => { resolveLock = resolve; });
@@ -1159,6 +1165,7 @@ class Manager extends EventEmitter {
         wasMonitoring = this.client.isMonitoring();
         if (wasMonitoring && usesAdvertisementGatedTransport()) {
           const transportLabel = bluetoothTransportLabel();
+          const advertisementWaitStartedAt = Date.now();
           let advertisementAge = await waitForFreshLockAdvertisement(lock, {
             freshnessMs: getCommandAdvertisementFreshnessMs(),
             timeoutMs: DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
@@ -1171,11 +1178,20 @@ class Manager extends EventEmitter {
             advertisementAge = await waitForFreshLockAdvertisement(lock);
           }
           if (advertisementAge === false) {
+            console.log(
+              `[Timing] ${address} fresh advertisement wait failed after `
+              + `${Date.now() - advertisementWaitStartedAt}ms`,
+            );
             throw new Error(
               `[Bluetooth][${transportLabel}] No fresh advertisement from ${address} `
               + `within ${DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS}ms`,
             );
           }
+          console.log(
+            `[Timing] ${address} fresh advertisement wait completed after `
+            + `${Date.now() - advertisementWaitStartedAt}ms `
+            + `(advertisement age ${advertisementAge}ms)`,
+          );
           console.log(`[Bluetooth][${transportLabel}] Connecting from an advertisement ${advertisementAge}ms old`);
         }
         if (wasMonitoring && shouldStopMonitorBeforeConnect()) {

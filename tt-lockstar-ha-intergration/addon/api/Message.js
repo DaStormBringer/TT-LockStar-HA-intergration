@@ -18,6 +18,11 @@ class Message {
   data;
 
   /**
+   * @type {string|number|undefined} Optional caller-supplied correlation ID
+   */
+  requestId;
+
+  /**
    * @type {boolean} Message is valid
    */
   valid = false;
@@ -34,6 +39,12 @@ class Message {
           this.type = json.type;
           if (typeof json.data != "undefined") {
             this.data = json.data;
+          }
+          if (
+            typeof json.requestId === "string"
+            || (typeof json.requestId === "number" && Number.isFinite(json.requestId))
+          ) {
+            this.requestId = json.requestId;
           }
           this.valid = true;
         }
@@ -65,6 +76,19 @@ class Message {
     this.data = data;
   }
 
+  getRequestId() {
+    return this.requestId;
+  }
+
+  setRequestId(requestId) {
+    if (
+      typeof requestId === "string"
+      || (typeof requestId === "number" && Number.isFinite(requestId))
+    ) {
+      this.requestId = requestId;
+    }
+  }
+
   isValid() {
     return this.valid;
   }
@@ -73,6 +97,10 @@ class Message {
     const obj = {
       type: this.type,
       data: this.data
+    };
+
+    if (typeof this.requestId !== "undefined") {
+      obj.requestId = this.requestId;
     }
 
     return JSON.stringify(obj);

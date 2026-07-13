@@ -3,14 +3,14 @@
 > [!CAUTION]
 > This API controls a physical lock and exposes sensitive credential data. Keep it behind Home Assistant authentication on a trusted local network. Do not treat a software success response as physical bolt verification.
 
-Alpha.48 adds a generic, capability-discoverable API at the existing `/api` WebSocket endpoint. Existing frontend message types such as `status`, `lock`, `unlock`, `credentials`, `settings`, and `firmware` remain supported.
+Alpha.48 introduced a generic, capability-discoverable API at the existing `/api` WebSocket endpoint. Alpha.49 adds optional request correlation without changing the command catalog. Existing frontend message types such as `status`, `lock`, `unlock`, `credentials`, `settings`, and `firmware` remain supported.
 
 ## Discover commands
 
 Request:
 
 ```json
-{"type":"capabilities"}
+{"type":"capabilities","requestId":"capabilities-1"}
 ```
 
 Response:
@@ -18,6 +18,7 @@ Response:
 ```json
 {
   "type": "capabilities",
+  "requestId": "capabilities-1",
   "data": {
     "commands": [
       {
@@ -41,6 +42,7 @@ The runtime response is authoritative for the installed add-on version.
 ```json
 {
   "type": "command",
+  "requestId": "firmware-1",
   "data": {
     "name": "lock.device_info.get",
     "address": "AA:BB:CC:DD:EE:FF",
@@ -49,7 +51,11 @@ The runtime response is authoritative for the installed add-on version.
 }
 ```
 
-A successful response uses type `command` and includes `name`, normalized uppercase `address`, `success`, `result`, `risk`, and `readOnly`. Errors use the existing `error` response type and include the original request.
+A successful response uses type `command`, echoes `requestId` when supplied, and includes `name`, normalized uppercase `address`, `success`, `result`, `risk`, and `readOnly`. Errors use the existing `error` response type, echo the same optional `requestId`, and include the original request.
+
+### Request correlation
+
+`capabilities` and `command` requests may include an optional top-level `requestId` string or finite number. The corresponding `capabilities`, `command`, or `error` reply echoes that value at the top level. Broadcast messages such as `status` and `lockStatus` do not carry the caller's request ID, so clients can ignore those asynchronous updates while waiting for their matching direct reply. Clients that omit `requestId` receive the exact legacy response shape without a `requestId` field.
 
 Commands with `confirmationRequired: true` require this exact, case-sensitive value:
 
@@ -62,6 +68,7 @@ For example, a supervised physical unlock request is shaped as follows:
 ```json
 {
   "type": "command",
+  "requestId": "unlock-1",
   "data": {
     "name": "lock.unlock",
     "address": "AA:BB:CC:DD:EE:FF",

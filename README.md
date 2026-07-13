@@ -15,7 +15,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.48`
+- Add-on version: `0.1.0-alpha.49`
 - Home Assistant stage: `experimental`
 - Development branch: `main`
 - Target: Home Assistant on Linux
@@ -23,7 +23,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
-- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ has one physically verified round trip without an add-on restart. ESPHome through the dedicated Craft proxy has also completed a sleeping-keypad alpha.47 round trip: 7.574-second unlock and 5.569-second lock, both physically confirmed. These are promising single-device results, not unattended-use qualification.
+- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ has one physically verified round trip without an add-on restart. ESPHome through the dedicated Craft proxy completed a sleeping-keypad alpha.47 round trip: 7.574-second unlock and 5.569-second lock, both physically confirmed. Alpha.48 then completed a cached-GATT unlock in 7.853 seconds total, also physically confirmed; that single sample validated the cache path but did not improve on alpha.47. These are promising single-device results, not unattended-use qualification.
 - Production readiness: **not ready**
 
 Compatibility is claimed only for the user's **M302** lock running firmware **6.4.43.24052101**. That value was read from this physical lock on 2026-07-13 through the dedicated read-only `COMM_READ_DEVICE_INFO` request using the Craft ESPHome proxy. No other lock model or M302 firmware is claimed as tested.
@@ -107,7 +107,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.48 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.49 \
   ./tt-lockstar-ha-intergration
 ```
 

@@ -7,6 +7,8 @@ This file contains the detailed release narrative and supervised hardware-test h
 
 ## Supervised validation history
 
+Alpha.49 is an observability and API-correlation release. Generic `capabilities` and `command` requests can carry an optional top-level string or numeric `requestId`; the matching direct response or error echoes it, while broadcast status messages remain uncorrelated. Connection logs now separate per-lock mutex wait, fresh-advertisement wait, BLE connection, authenticated command, and total operation timing. Advertisement freshness, retries, authentication, command payloads, response validation, and disconnect behavior are unchanged. The built `amd64` image passes 85 JavaScript tests and 7 ESPHome bridge tests and reports SDK 0.3.34 with 40 commands. This automated validation does not require a physical actuator command; live timing remains separately supervised.
+
 Alpha.48 exposes the pinned JavaScript SDK's supported high-level command surface through a capability-discoverable generic WebSocket API. Exact command-name and lock-address confirmation is mandatory for actuator, security-sensitive, and destructive commands. Protected SDK internals, raw command injection, firmware update, and the M302-inappropriate bicycle status query remain unavailable. Existing frontend message types are unchanged.
 
 Alpha.48 also reuses a successfully discovered ESPHome GATT service table and MTU across short-lived lock sessions. A cached failure clears the local and ESPHome cache before one uncached retry. This removes repeat service discovery only; it does not cache or bypass TTLock authentication, command challenges, notification setup, response validation, or physical verification. Automated coverage passes.
