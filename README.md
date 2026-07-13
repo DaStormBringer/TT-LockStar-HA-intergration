@@ -26,7 +26,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 - Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ also has one physically verified round trip without an add-on restart: unlock completed in 4.32 seconds; the immediate lock used its bounded second attempt and completed in 9.17 seconds. The user confirmed both bolt movements at the door. This is promising single-device evidence, not unattended-use qualification.
 - Production readiness: **not ready**
 
-Compatibility is claimed only for the user's M302 lock running its currently installed firmware. The current SDK metadata exposes the firmware as `unknown`; no other lock model or M302 firmware is claimed as tested until the dedicated read-only firmware request returns that exact value from the lock.
+Compatibility is claimed only for the user's **M302** lock running firmware **6.4.43.24052101**. That value was read from this physical lock on 2026-07-13 through the dedicated read-only `COMM_READ_DEVICE_INFO` request using the Craft ESPHome proxy. No other lock model or M302 firmware is claimed as tested.
 
 The source repository may be stored or edited on Windows, but the deployable add-on image is Linux-native and was built with Docker Desktop's Linux engine.
 
