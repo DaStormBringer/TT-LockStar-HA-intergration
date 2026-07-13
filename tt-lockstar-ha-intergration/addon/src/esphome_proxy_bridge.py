@@ -449,6 +449,22 @@ class Bridge:
                 response=bool(request.get("response", True)),
             )
             return True
+        if action == "write_fragments":
+            fragments = [bytes.fromhex(value) for value in request.get("data", [])]
+            if not fragments:
+                raise ValueError("write_fragments requires at least one fragment")
+            delay_ms = max(0, min(int(request.get("delay_ms", 20)), 100))
+            response = bool(request.get("response", True))
+            for index, fragment in enumerate(fragments):
+                await client.bluetooth_gatt_write(
+                    address,
+                    handle,
+                    fragment,
+                    response=response,
+                )
+                if index + 1 < len(fragments) and delay_ms:
+                    await asyncio.sleep(delay_ms / 1000)
+            return len(fragments)
         if action == "write_descriptor":
             await client.bluetooth_gatt_write_descriptor(
                 address,

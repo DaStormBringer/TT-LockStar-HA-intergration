@@ -7,6 +7,7 @@ const {
   createNobleWithBindingsShim,
   patchCommandConnectState,
   patchDbusCommandPacing,
+  patchEsphomeAtomicWrite,
   patchFastCommandDeviceConnect,
   patchFastCommandLockConnect,
   patchDeadboltStatusQuery,
@@ -204,9 +205,22 @@ test('paces multipart write-without-response commands on GATT transports', () =>
   assert.equal(patchDbusCommandPacing(patched), patched);
 });
 
+test('batches ESPHome multipart writes into one bridge request', () => {
+  const source = `        let index = 0;
+        do {`;
+
+  const patched = patchEsphomeAtomicWrite(source);
+
+  assert.match(patched, /TT_LOCKSTAR_ESPHOME_ATOMIC_WRITE/);
+  assert.match(patched, /characteristic\.writeFragments\(fragments, true, 20\)/);
+  assert.match(patched, /process\.env\.TTLOCK_BLUETOOTH_TRANSPORT === "esphome_proxy"/);
+  assert.equal(patchEsphomeAtomicWrite(patched), patched);
+});
+
 test('fails closed when the expected SDK code is not present', () => {
   assert.throws(() => patchCommandConnectState('unexpected source'), /expected one match/);
   assert.throws(() => patchDbusCommandPacing('unexpected source'), /expected one match/);
+  assert.throws(() => patchEsphomeAtomicWrite('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleEntrypoint('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDevice('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDbusStateCache('unexpected source'), /expected one match/);

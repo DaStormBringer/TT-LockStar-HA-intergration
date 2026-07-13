@@ -20,6 +20,7 @@ const FAST_COMMAND_TIMEOUT_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_TIMEOUT';
 const TARGETED_NOBLE_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_SERVICE_DISCOVERY';
 const TARGETED_COMMAND_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_TARGETED_COMMAND_DISCOVERY';
 const DBUS_COMMAND_PACING_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_COMMAND_PACING';
+const ESPHOME_ATOMIC_WRITE_PATCH_MARKER = 'TT_LOCKSTAR_ESPHOME_ATOMIC_WRITE';
 const DIRECT_COMMAND_ENVELOPE_PATCH_MARKER = 'TT_LOCKSTAR_DIRECT_COMMAND_ENVELOPE';
 
 function replaceExactlyOnce(source, expected, replacement, label) {
@@ -174,6 +175,37 @@ function patchDbusCommandPacing(source) {
             }
             index += MTU;`,
     'TTBluetoothDevice D-Bus command pacing',
+  );
+}
+
+function patchEsphomeAtomicWrite(source) {
+  if (source.includes(ESPHOME_ATOMIC_WRITE_PATCH_MARKER)) return source;
+
+  return replaceExactlyOnce(
+    source,
+    `        let index = 0;
+        do {`,
+    `        let index = 0;
+        // ${ESPHOME_ATOMIC_WRITE_PATCH_MARKER}: keep a multipart TTLock command
+        // inside one Node-to-bridge request. This preserves the required pacing
+        // while avoiding three process/API round trips during a short wake window.
+        if (process.env.TTLOCK_BLUETOOTH_TRANSPORT === "esphome_proxy"
+            && typeof characteristic.writeFragments === "function") {
+            const fragments = [];
+            while (index < data.length) {
+                fragments.push(data.subarray(index, index + Math.min(MTU, data.length - index)));
+                index += MTU;
+            }
+            const written = await characteristic.writeFragments(fragments, true, 20);
+            if (written) {
+                fragments.forEach((fragment, fragmentIndex) => {
+                    console.log(\`[Bluetooth][GATT] command fragment \${fragmentIndex + 1}/\${fragments.length} accepted (\${fragment.length} bytes)\`);
+                });
+            }
+            return written;
+        }
+        do {`,
+    'TTBluetoothDevice ESPHome atomic multipart write',
   );
 }
 
@@ -577,8 +609,10 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   fs.writeFileSync(
     bluetoothDevicePath,
     patchDbusCommandPacing(
-      patchTargetedCommandDiscovery(
-        patchFastCommandDeviceConnect(fs.readFileSync(bluetoothDevicePath, 'utf8')),
+      patchEsphomeAtomicWrite(
+        patchTargetedCommandDiscovery(
+          patchFastCommandDeviceConnect(fs.readFileSync(bluetoothDevicePath, 'utf8')),
+        ),
       ),
     ),
   );
@@ -618,6 +652,7 @@ module.exports = {
   patchDeadboltStatusQuery,
   patchDirectCommandEnvelopeImport,
   patchDbusCommandPacing,
+  patchEsphomeAtomicWrite,
   patchLockStateAdvertisement,
   patchLockStateInitialization,
   patchNobleEntrypoint,

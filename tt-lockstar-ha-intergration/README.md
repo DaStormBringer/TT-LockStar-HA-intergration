@@ -9,13 +9,13 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.35`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.36`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
 - Requires either a Bluetooth HCI adapter directly available to the Home Assistant Linux host or an explicitly configured local ESPHome Bluetooth Proxy.
 - Does not communicate through a TTLock G2 gateway.
-- ESPHome Bluetooth Proxy support is new and has not yet completed a physical command test.
+- ESPHome Bluetooth Proxy support has completed one physical unlock, but repeated lock/unlock reliability is not established.
 - Alpha.32 supports only ESPHome native API endpoints without an API password or Noise encryption key; keep them on a trusted local network.
 - ESPHome currently allows one Bluetooth proxy API subscriber at a time. Configured proxy endpoints are dedicated to TT LockStar while this add-on runs, so Home Assistant Core cannot simultaneously receive Bluetooth advertisements from those same proxies.
 - Alpha.32 explicitly requests active scan mode; proxies must support scanner state/mode control, active connections, and remote GATT caching.
@@ -64,6 +64,8 @@ Alpha.33 addresses the next deployed wake test: active scanning was requested su
 Alpha.34 follows a synchronized sole-subscriber capture. The deployed ESPHome firmware rejected a second Bluetooth subscriber, so the add-on was stopped for the bounded diagnostic. The Living Room proxy then received five M302 wake packets at approximately -81 to -79 dBm, while the Master Bedroom proxy delivered no packets. The packets arrived through ESPHome's raw-advertisement batch message and contained the paired MAC, UUID `1910`, M302 name, manufacturer data, and service data. Alpha.34 consumes that raw format and decodes it locally. No lock command was sent, and this remains awaiting a deployed metadata session.
 
 After a supported integration handoff made the Living Room proxy the dedicated TT LockStar Bluetooth subscriber, alpha.34 completed a full read-only metadata session in 18.9 seconds and updated lock time through MQTT. Its first supervised unlock test then failed safely: both ESPHome connection attempts timed out before any unlock payload was written, and the user confirmed the deadbolt remained locked. Alpha.35 widens only the ESPHome connection window and allows its failed-connect cleanup to finish before a retry; it does not change command authentication or any direct-adapter timing.
+
+Alpha.35 then completed the first physically confirmed ESPHome proxy unlock on this M302. It connected through the Living Room proxy and returned authenticated success in 2.67 seconds; the user confirmed the deadbolt retracted. Two supervised relock commands subsequently connected but lost the BLE session during the authenticated `checkUserTime` exchange, before either actuator payload was written; the user confirmed the bolt remained unlocked. Alpha.36 sends the three BLE fragments of each handshake as one ordered bridge transaction to reduce process/API round-trip latency while preserving 20 ms pacing and the full TTLock authentication exchange. It still requires supervised hardware validation.
 
 The installed alpha.16 image completed a supervised open-door physical cycle. Unlock returned `true` on the first manager attempt, the bolt retracted, and Home Assistant changed to `unlocked`. An immediate relock then failed: attempt 1 hit the 55-second hard timeout and attempts 2–3 could not connect, leaving the bolt physically retracted. Restarting only this add-on cleared Noble's stale raw-HCI session; the following lock returned `true` on its first manager attempt, extended the bolt, and changed Home Assistant to `locked`. Raw HCI can operate the lock, but sequential command recovery remains a blocking reliability defect.
 
