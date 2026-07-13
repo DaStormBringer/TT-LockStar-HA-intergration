@@ -858,14 +858,14 @@ class Manager extends EventEmitter {
           if (advertisementAge === false) {
             const refreshed = await refreshDbusDeviceCache(lock);
             if (refreshed) {
-              console.log(`[Bluetooth][D-Bus] Removed stale unpaired BlueZ cache for ${address}`);
+              console.log(`[Bluetooth][BlueZ] Removed stale unpaired device cache for ${address}`);
             }
             advertisementAge = await waitForFreshLockAdvertisement(lock);
           }
           if (advertisementAge === false) {
-            throw new Error(`[Bluetooth][D-Bus] No fresh advertisement from ${address} within 6000ms`);
+            throw new Error(`[Bluetooth][BlueZ] No fresh advertisement from ${address} within 6000ms`);
           }
-          console.log(`[Bluetooth][D-Bus] Connecting from an advertisement ${advertisementAge}ms old`);
+          console.log(`[Bluetooth][BlueZ] Connecting from an advertisement ${advertisementAge}ms old`);
         }
         if (wasMonitoring) {
           console.log("[Manager] Stopping monitor before connecting to lock...");
@@ -1113,7 +1113,7 @@ class Manager extends EventEmitter {
     const address = lock.getAddress();
     markLockAndStoredAdvertisement(lock, this.pairedLocks.get(address));
     if (this.lockMutexes.has(address)) {
-      console.log(`[Bluetooth][D-Bus] Recorded live lock update for pending connection ${address}`);
+      console.log(`[Bluetooth][BlueZ] Recorded live lock update for pending connection ${address}`);
       return;
     }
     if (this.processingLocks.has(address)) {

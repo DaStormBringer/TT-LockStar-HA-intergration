@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.29] - 2026-07-12
+
+- Record the first physically verified native BlueZ round trip on the front-door lock: unlock completed in 4.32 seconds and the user confirmed the bolt retracted.
+- Record the immediately following lock: the first connection timed out without writing the lock command, then the bounded retry connected in 447 ms; the authenticated lock command completed in 9.17 seconds total and the user confirmed the bolt extended.
+- Confirm the native `bluez` runtime loaded no Noble modules during validation.
+- Rename shared BlueZ D-Bus diagnostic labels from `[Bluetooth][D-Bus]` to `[Bluetooth][BlueZ]` so native transport logs are not mistaken for the Noble-backed `dbus` transport.
+- Keep native BlueZ opt-in and all unattended or automatic lock control out of scope while repeated-cycle reliability is still being established.
+
 ## [0.1.0-alpha.28] - 2026-07-12
 
 - Record that alpha.27 performed a real second native BlueZ connection attempt, but both attempts returned `le-connection-abort-by-local` before GATT setup or any unlock write.

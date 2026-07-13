@@ -13,15 +13,15 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.28`
+- Add-on version: `0.1.0-alpha.29`
 - Home Assistant stage: `experimental`
-- Development branch: `codex/faster-lock-commands`
+- Development branch: `codex/bluez-hardware-validation-alpha29`
 - Target: Home Assistant on Linux
 - Verified image: Home Assistant Alpine Linux, `amd64`
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
-- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have all worked with the raw-HCI transport. Alpha.16 completed a supervised open-door physical unlock and lock cycle: unlock succeeded on the first manager attempt, but the immediate relock exhausted its retries because the raw-HCI session went stale. Restarting only the add-on cleared the session; the next lock succeeded on the first attempt, and physical movement matched Home Assistant state. Sequential commands are therefore not yet reliable without a restart.
+- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Alpha.29 also records the first physically verified native BlueZ round trip without an add-on restart: unlock completed in 4.32 seconds; the immediate lock used its bounded second attempt and completed in 9.17 seconds. The user confirmed both bolt movements at the door. This is promising single-device evidence, not unattended-use qualification.
 - Production readiness: **not ready**
 
 The source repository may be stored or edited on Windows, but the deployable add-on image is Linux-native and was built with Docker Desktop's Linux engine.
@@ -96,7 +96,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.28 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.29 \
   ./tt-lockstar-ha-intergration
 ```
 
@@ -109,7 +109,7 @@ Building an image does not validate Bluetooth behavior. Final testing must occur
 - Lock pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in backups. Protect both.
 - Do not expose the add-on API or Ingress service directly to the internet.
 - Native Bluetooth behavior depends on adapter hardware, driver support, signal quality, D-Bus, and host networking.
-- Alpha.28 keeps raw HCI as the default and retains the native `bluez` option. Native BlueZ removes only the target's host-unpaired cache after disconnect so each wake can provide a fresh connection object; host-paired devices are preserved.
+- Alpha.29 keeps raw HCI as the default and retains the native `bluez` option. Native BlueZ removes only the target's host-unpaired cache after disconnect so each wake can provide a fresh connection object; host-paired devices are preserved. One supervised native BlueZ unlock/lock round trip is physically confirmed, but repeated-cycle reliability has not been established.
 - The image installs both transports, compiles the raw-HCI native binding, explicitly builds the pinned TTLock SDK commit, and then runs the fail-closed patch step.
 - `npm audit --omit=dev` reports 7 moderate, 7 high, and 2 critical findings. Most high/critical findings are inherited through the legacy raw-HCI build/install dependency chain. There is no safe automatic upgrade for the pinned runtime; keep the add-on local-only and do not use `npm audit fix --force`.
 - Generated frontend assets are committed because the Home Assistant add-on image copies the prebuilt interface.
