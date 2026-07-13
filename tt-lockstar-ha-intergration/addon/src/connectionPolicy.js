@@ -100,13 +100,13 @@ function shouldStopMonitorBeforeConnect(
   // Native BlueZ can connect while discovery remains active. Avoiding a
   // StopDiscovery -> Device1.Connect transition removes an adapter race that
   // repeatedly cost the first command attempt on the test hardware.
-  return transport !== 'bluez';
+  return !['bluez', 'esphome_proxy'].includes(transport);
 }
 
 function getCommandRetryDelayMs(
   transport = process.env.TTLOCK_BLUETOOTH_TRANSPORT,
 ) {
-  return transport === 'bluez'
+  return ['bluez', 'esphome_proxy'].includes(transport)
     ? NATIVE_BLUEZ_COMMAND_RETRY_DELAY_MS
     : DEFAULT_COMMAND_RETRY_DELAY_MS;
 }

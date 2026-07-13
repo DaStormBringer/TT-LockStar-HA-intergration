@@ -162,12 +162,12 @@ function patchDbusCommandPacing(source) {
                 return false;
             }
             // ${DBUS_COMMAND_PACING_PATCH_MARKER}: WriteValue returns as soon as
-            // BlueZ accepts a write-without-response fragment. Pace only multi-part
-            // D-Bus commands so the lock can consume one ATT packet before the next.
-            if (["dbus", "bluez"].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT)) {
+            // A GATT transport can accept a write-without-response fragment before
+            // the lock consumes it. Pace multi-part commands on those transports.
+            if (["dbus", "bluez", "esphome_proxy"].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT)) {
                 const fragmentNumber = Math.floor(index / MTU) + 1;
                 const fragmentCount = Math.ceil(data.length / MTU);
-                console.log(\`[Bluetooth][BlueZ] command fragment \${fragmentNumber}/\${fragmentCount} accepted (\${fragment.length} bytes)\`);
+                console.log(\`[Bluetooth][GATT] command fragment \${fragmentNumber}/\${fragmentCount} accepted (\${fragment.length} bytes)\`);
                 if (index + MTU < data.length) {
                     await (0, timingUtil_1.sleep)(20);
                 }
@@ -415,7 +415,9 @@ function patchFastCommandLockConnect(source) {
             // command-only policy through to the Bluetooth setup layer.
             connected = await this.device.connect(
                 this.skipDataRead,
-                this.skipDataRead ? 4.5 : 40,
+                this.skipDataRead
+                    ? (process.env.TTLOCK_BLUETOOTH_TRANSPORT === "esphome_proxy" ? 10 : 4.5)
+                    : 40,
             );`,
     'TTLock command-only device connect propagation',
   );

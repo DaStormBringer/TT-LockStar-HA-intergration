@@ -9,13 +9,14 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.30`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.31`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
-- Requires a Bluetooth HCI adapter directly available to the Home Assistant Linux host.
+- Requires either a Bluetooth HCI adapter directly available to the Home Assistant Linux host or an explicitly configured local ESPHome Bluetooth Proxy.
 - Does not communicate through a TTLock G2 gateway.
-- Does not use Home Assistant Bluetooth proxies.
+- ESPHome Bluetooth Proxy support is new in alpha.31 and has not yet completed a physical command test.
+- Alpha.31 supports only ESPHome native API endpoints without an API password or Noise encryption key; keep them on a trusted local network.
 - May contend with the TTLock app or G2 gateway when multiple systems contact the lock.
 - Magnetic door-contact state is not deadbolt position. The lock entity stays unknown when the newest operation does not explicitly confirm the bolt.
 - Must not be used as the only means of entering or securing the property.
@@ -26,13 +27,17 @@ Do not reset or unpair an existing production lock unless its current pairing da
 ## Requirements
 
 - Home Assistant OS or supervised Home Assistant on Linux
-- Direct BlueZ-compatible Bluetooth adapter, normally `hci0` or `hci1`
+- Direct BlueZ-compatible Bluetooth adapter, normally `hci0` or `hci1`, or an ESPHome proxy supporting active connections and remote GATT caching
 - MQTT broker for Home Assistant discovery, reporting, and control
 - Manual entry fallback during all testing
 
 The merged `amd64` Alpine image builds successfully. The declared `aarch64` target still requires a native build and hardware validation.
 
 ## Hardware validation
+
+### Tested compatibility scope
+
+Hardware compatibility is claimed only for the user's **M302** lock and the firmware currently installed on that device. The current SDK metadata reports that firmware value as `unknown`, so this README does not claim compatibility with any other M302 firmware or any other lock model. Replace `unknown` with the exact reported value after a successful full-metadata read; do not broaden this statement from a protocol-only or simulated test.
 
 On 2026-07-12, `0.1.0-alpha.13` completed one supervised physical unlock and lock cycle on an M302 lock through a direct `hci0` adapter. Both commands returned success on their first command-only attempt, the deadbolt movement was confirmed at the door, and Home Assistant changed from `unlocked` to `locked` accordingly. Signal during the test was approximately -83 to -79 dB.
 
@@ -47,6 +52,8 @@ Alpha.28 retained the native `bluez` option that bypasses Noble and implements d
 Alpha.29 records the first physically verified native BlueZ round trip on the front-door lock without restarting the add-on. Unlock returned its authenticated success response in 4.32 seconds and the user confirmed that the bolt retracted. The immediate lock's first connection timed out before the lock command was written; its bounded retry connected in 447 ms, returned the authenticated lock response in 9.17 seconds total, and the user confirmed that the bolt extended. The native process loaded no Noble runtime modules. New installations still default to legacy raw HCI, and one supervised cycle is not enough to authorize unattended or automatic lock control.
 
 Alpha.30 targets the remaining command latency. Native BlueZ keeps discovery active while initiating a command connection, retries after 100 ms instead of 1.5 seconds, and bounds a failed command connection at 4.5 seconds instead of 6 seconds. It preserves authenticated command handling, the two-attempt limit, and every non-native transport policy. These timing changes require supervised physical validation before their performance or reliability is established.
+
+Alpha.31 adds a fully local `esphome_proxy` transport. A small Python bridge uses the ESPHome native API for advertisements, proxy selection, active BLE connections, GATT enumeration, reads, writes, and notifications while the existing JavaScript SDK continues to own TTLock credentials, encryption, and commands. It does not use TTLock Cloud or the G2 gateway. This path must pass read-only discovery and supervised physical command testing before it is considered hardware validated.
 
 The installed alpha.16 image completed a supervised open-door physical cycle. Unlock returned `true` on the first manager attempt, the bolt retracted, and Home Assistant changed to `unlocked`. An immediate relock then failed: attempt 1 hit the 55-second hard timeout and attempts 2–3 could not connect, leaving the bolt physically retracted. Restarting only this add-on cleared Noble's stale raw-HCI session; the following lock returned `true` on its first manager attempt, extended the bolt, and changed Home Assistant to `locked`. Raw HCI can operate the lock, but sequential command recovery remains a blocking reliability defect.
 

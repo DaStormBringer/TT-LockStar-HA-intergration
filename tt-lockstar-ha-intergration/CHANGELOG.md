@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.31] - 2026-07-12
+
+- Add a fully local ESPHome Bluetooth Proxy transport using the ESPHome native API; TTLock Cloud and the G2 gateway are not involved.
+- Support multiple configured proxies, recent-advertisement and signal-aware proxy selection, connection-slot reporting, active BLE connections, GATT enumeration, reads, writes, descriptors, and notifications.
+- Keep the existing JavaScript TTLock credential, encryption, command, and authenticated-response layers unchanged behind the new transport adapter.
+- Keep proxy scanning active during command connections, retain the fresh-advertisement safety gate, and preserve bounded command attempts.
+- Mark the transport very experimental pending read-only proxy validation and supervised physical command testing.
+
 ## [0.1.0-alpha.30] - 2026-07-12
 
 - Record a second physically confirmed native BlueZ round trip: after a keypad wake, unlock completed in 7.04 seconds and the immediate lock completed in 9.34 seconds; both succeeded on their second connection attempt.

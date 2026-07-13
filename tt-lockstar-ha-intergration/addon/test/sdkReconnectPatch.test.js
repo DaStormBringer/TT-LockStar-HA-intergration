@@ -158,7 +158,7 @@ test('uses a shorter Bluetooth setup path for command-only connections', () => {
   assert.match(patchedDevice, /device\.connect\(connectTimeoutSeconds\)/);
   assert.match(patchedDevice, /if \(skipDeviceInfo\)/);
   assert.match(patchedLock, /TT_LOCKSTAR_FAST_COMMAND_LOCK_CONNECT/);
-  assert.match(patchedLock, /this\.skipDataRead \? 4\.5 : 40/);
+  assert.match(patchedLock, /TTLOCK_BLUETOOTH_TRANSPORT === "esphome_proxy" \? 10 : 4\.5/);
   assert.match(patchedLock, /maxRetries = this\.skipDataRead \? 1 : 5/);
   assert.equal(patchFastCommandDeviceConnect(patchedDevice), patchedDevice);
   assert.equal(patchFastCommandLockConnect(patchedLock), patchedLock);
@@ -187,7 +187,7 @@ test('limits command setup to the TTLock service and skips characteristic reads'
   assert.equal(patchTargetedCommandDiscovery(patchedBluetoothDevice), patchedBluetoothDevice);
 });
 
-test('paces multipart write-without-response commands only on D-Bus', () => {
+test('paces multipart write-without-response commands on GATT transports', () => {
   const source = `            const written = await characteristic.write(data.subarray(index, index + Math.min(MTU, remaining)), true);
             if (!written) {
                 return false;
@@ -198,7 +198,7 @@ test('paces multipart write-without-response commands only on D-Bus', () => {
   const patched = patchDbusCommandPacing(source);
 
   assert.match(patched, /TT_LOCKSTAR_DBUS_COMMAND_PACING/);
-  assert.match(patched, /\["dbus", "bluez"\]\.includes/);
+  assert.match(patched, /\["dbus", "bluez", "esphome_proxy"\]\.includes/);
   assert.match(patched, /timingUtil_1\.sleep\)\(20\)/);
   assert.match(patched, /fragmentNumber.*fragmentCount/);
   assert.equal(patchDbusCommandPacing(patched), patched);

@@ -5,11 +5,12 @@ const Module = require('node:module');
 const RAW_HCI = 'raw_hci';
 const DBUS = 'dbus';
 const BLUEZ = 'bluez';
+const ESPHOME_PROXY = 'esphome_proxy';
 const DBUS_PACKAGE = '@ttlockstar/noble-dbus';
 
 function normalizeTransport(value) {
   const transport = String(value || RAW_HCI).trim().toLowerCase();
-  if (transport !== RAW_HCI && transport !== DBUS && transport !== BLUEZ) {
+  if (![RAW_HCI, DBUS, BLUEZ, ESPHOME_PROXY].includes(transport)) {
     throw new Error(`Unsupported Bluetooth transport: ${transport}`);
   }
   return transport;
@@ -40,6 +41,7 @@ module.exports = {
   BLUEZ,
   DBUS,
   DBUS_PACKAGE,
+  ESPHOME_PROXY,
   RAW_HCI,
   installNobleTransport,
   mapNobleRequest,

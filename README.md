@@ -13,9 +13,9 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.30`
+- Add-on version: `0.1.0-alpha.31`
 - Home Assistant stage: `experimental`
-- Development branch: `codex/faster-native-bluez-alpha30`
+- Development branch: `codex/local-esphome-proxy-alpha31`
 - Target: Home Assistant on Linux
 - Verified image: Home Assistant Alpine Linux, `amd64`
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
@@ -24,16 +24,19 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 - Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Alpha.29 also records the first physically verified native BlueZ round trip without an add-on restart: unlock completed in 4.32 seconds; the immediate lock used its bounded second attempt and completed in 9.17 seconds. The user confirmed both bolt movements at the door. This is promising single-device evidence, not unattended-use qualification.
 - Production readiness: **not ready**
 
+Compatibility is claimed only for the user's M302 lock running its currently installed firmware. The current SDK metadata exposes the firmware as `unknown`; no other lock model or M302 firmware is claimed as tested until that exact value is captured during a full-metadata session.
+
 The source repository may be stored or edited on Windows, but the deployable add-on image is Linux-native and was built with Docker Desktop's Linux engine.
 
 ## Connection architecture
 
-This add-on communicates directly with a TTLock-compatible lock using a selectable Bluetooth transport. `raw_hci` is the default because it passed the supervised physical test; `dbus` uses maintained `@stoprocent/noble` 2.5.5; and `bluez` bypasses Noble with a native BlueZ D-Bus adapter. Both D-Bus paths remain experimental.
+This add-on communicates locally with a TTLock-compatible lock using a selectable Bluetooth transport. `raw_hci` is the default because it passed the supervised physical test; `dbus` uses maintained `@stoprocent/noble` 2.5.5; `bluez` bypasses Noble with a native BlueZ D-Bus adapter; and `esphome_proxy` uses the native API of one or more existing ESPHome Bluetooth proxies. All non-default paths remain experimental.
 
-- A direct USB or onboard Bluetooth adapter is required.
+- A direct USB/onboard Bluetooth adapter is required for `raw_hci`, `dbus`, and `bluez`; `esphome_proxy` instead requires a local ESPHome device with active Bluetooth connections and remote GATT caching enabled.
 - The adapter is selected with `bluetooth_adapter`, normally `hci0` or `hci1`.
-- The transport is selected with `bluetooth_transport`: `raw_hci` by default, Noble-backed `dbus`, or native `bluez`.
-- Home Assistant Bluetooth proxies are not a transport for this Noble-based add-on.
+- The transport is selected with `bluetooth_transport`: `raw_hci` by default, Noble-backed `dbus`, native `bluez`, or local `esphome_proxy`.
+- `esphome_proxy_hosts` is a comma-separated list of native API endpoints such as `192.168.1.30:6053,192.168.1.55:6053`. No TTLock Cloud or G2 gateway is used by this transport.
+- Alpha.31 supports ESPHome native API endpoints without an API password or Noise encryption key. Keep those endpoints on a trusted local network; encrypted proxy credentials are not implemented yet.
 - A TTLock G2 gateway is not a transport for this add-on and remains a separate TTLock app/cloud path.
 - Simultaneous access from the G2, TTLock app, and this add-on may cause Bluetooth contention or failed operations.
 
@@ -96,7 +99,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.30 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.31 \
   ./tt-lockstar-ha-intergration
 ```
 
