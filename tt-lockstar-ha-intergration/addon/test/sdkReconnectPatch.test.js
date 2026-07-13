@@ -8,7 +8,6 @@ const {
   patchCommandConnectState,
   patchDbusCommandPacing,
   patchEsphomeAtomicWrite,
-  patchAdminLock,
   patchAdminUnlock,
   patchFastCommandDeviceConnect,
   patchFastCommandLockConnect,
@@ -241,7 +240,7 @@ test('uses TTLock administrator authentication only for admin unlocks', () => {
   assert.equal(patchAdminUnlock(patched), patched);
 });
 
-test('uses TTLock administrator authentication only for admin locks', () => {
+test('keeps lock on the SDK user-time authentication path', () => {
   const source = `    async lock() {
         if (!this.isConnected()) {
             throw new Error("Lock is not connected");
@@ -253,21 +252,35 @@ test('uses TTLock administrator authentication only for admin locks', () => {
             console.log("========= check user time");
             const psFromLock = await this.checkUserTime();
             console.log("========= check user time", psFromLock);
-            console.log("========= lock");`;
+            console.log("========= lock");
+    }
+    async unlock() {
+        if (!this.isConnected()) {
+            throw new Error("Lock is not connected");
+        }
+        if (!this.initialized) {
+            throw new Error("Lock is in pairing mode");
+        }
+        try {
+            console.log("========= check user time");
+            const psFromLock = await this.checkUserTime();
+            console.log("========= check user time", psFromLock);
+            console.log("========= unlock");`;
 
-  const patched = patchAdminLock(source);
+  const patched = patchAdminUnlock(source);
+  const lockSection = patched.slice(0, patched.indexOf('    async unlock()'));
 
-  assert.match(patched, /TT_LOCKSTAR_ADMIN_LOCK/);
+  assert.match(lockSection, /const psFromLock = await this\.checkUserTime\(\)/);
+  assert.doesNotMatch(lockSection, /checkAdminCommand/);
+  assert.doesNotMatch(lockSection, /TT_LOCKSTAR_ADMIN_LOCK/);
+  assert.match(patched, /TT_LOCKSTAR_ADMIN_UNLOCK/);
   assert.match(patched, /hasAdminPassword[\s\S]*this\.checkAdminCommand\(\)/);
-  assert.match(patched, /: await this\.checkUserTime\(\)/);
-  assert.equal(patchAdminLock(patched), patched);
 });
 
 test('fails closed when the expected SDK code is not present', () => {
   assert.throws(() => patchCommandConnectState('unexpected source'), /expected one match/);
   assert.throws(() => patchDbusCommandPacing('unexpected source'), /expected one match/);
   assert.throws(() => patchEsphomeAtomicWrite('unexpected source'), /expected one match/);
-  assert.throws(() => patchAdminLock('unexpected source'), /expected one match/);
   assert.throws(() => patchAdminUnlock('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleEntrypoint('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleDevice('unexpected source'), /expected one match/);

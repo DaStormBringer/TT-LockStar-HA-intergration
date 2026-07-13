@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.39] - 2026-07-13
+
+- Revert only alpha.38's administrator-authentication change for locking: lock again uses the pinned SDK's `CHECK_USER_TIME` path, while the physically validated administrator unlock continues to use `CHECK_ADMIN`.
+- Record alpha.38's supervised failure: both bounded lock attempts connected through the Living Room ESPHome proxy and disconnected while waiting for the administrator-check response, before the actuator payload; the user confirmed the bolt remained unlocked.
+- Align the implementation with the official React Native wrapper's generic `controlLock(LOCK, lockData)` boundary and the pinned SDK analysis, which documents administrator authentication for unlock but the user-time check for lock.
+- Preserve the lock payload, AES and unlock keys, authenticated response validation, ESPHome fragment batching, retry limits, and fail-closed behavior.
+
 ## [0.1.0-alpha.38] - 2026-07-13
 
 - Use TTLock's documented administrator lock path and `CHECK_ADMIN` challenge before locking when the imported key contains an administrator password; ordinary eKeys retain `CHECK_USER_TIME`.
