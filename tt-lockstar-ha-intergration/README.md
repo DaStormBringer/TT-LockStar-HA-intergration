@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.54`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.55`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 Current development prioritizes discovery, evidence-backed state, reliable lock/unlock, settings, PINs, and cards. Biometric fingerprint enrollment and management are unvalidated and intentionally last in the implementation and hardware-test order.
 
@@ -49,6 +49,7 @@ Detailed per-release changes and supervised hardware-test results are maintained
 ## Features
 
 - Dedicated read-only firmware-revision request using `COMM_READ_DEVICE_INFO` / `FIRMWARE_REVISION`
+- Read-only hardware-feature discovery with persisted capability metadata for reliable settings, PIN, and card routing after restarts
 - Capability-discoverable WebSocket command API for the pinned SDK's supported high-level operations; see [API_COMMANDS.md](API_COMMANDS.md)
 - Ingress interface for discovery and management
 - Multiple-lock support

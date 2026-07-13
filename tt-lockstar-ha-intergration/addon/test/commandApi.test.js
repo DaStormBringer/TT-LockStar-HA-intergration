@@ -19,9 +19,9 @@ test('capability catalog covers the complete high-level SDK command surface', ()
   const capabilities = api.getCapabilities();
   const names = new Set(capabilities.map(item => item.name));
 
-  assert.equal(capabilities.length, 41);
+  assert.equal(capabilities.length, 42);
   for (const name of [
-    'lock.connection.prepare', 'lock.lock', 'lock.unlock', 'lock.status.get', 'lock.device_info.get',
+    'lock.connection.prepare', 'lock.lock', 'lock.unlock', 'lock.status.get', 'lock.features.get', 'lock.device_info.get',
     'lock.time.get', 'lock.time.sync', 'lock.auto_lock.get', 'lock.auto_lock.set',
     'lock.audio.get', 'lock.audio.set', 'lock.passage_mode.get',
     'lock.passage_mode.set', 'lock.passage_mode.delete', 'lock.passage_mode.clear',
@@ -32,6 +32,29 @@ test('capability catalog covers the complete high-level SDK command surface', ()
     assert.equal(names.has(name), true, `missing ${name}`);
   }
   assert.equal(capabilities.every(item => !Object.hasOwn(item, 'run')), true);
+});
+
+test('hardware feature discovery is read-only and disconnects', async () => {
+  const calls = [];
+  const manager = fakeManager({
+    getLockFeatures: async address => {
+      calls.push(['getLockFeatures', address]);
+      return { features: [{ value: 0, name: 'PASSCODE' }], readOnly: true };
+    },
+    disconnectLock: async address => calls.push(['disconnectLock', address]),
+  });
+
+  const result = await new CommandApi(manager).execute({
+    name: 'lock.features.get',
+    address: ADDRESS,
+  });
+
+  assert.equal(result.readOnly, true);
+  assert.equal(result.result.features[0].name, 'PASSCODE');
+  assert.deepEqual(calls, [
+    ['getLockFeatures', ADDRESS],
+    ['disconnectLock', ADDRESS],
+  ]);
 });
 
 test('read command validates, dispatches, and disconnects', async () => {

@@ -11,6 +11,8 @@ const {
   patchAdminUnlock,
   patchFastCommandDeviceConnect,
   patchFastCommandLockConnect,
+  patchFeatureListPersistence,
+  patchFeatureListRestore,
   patchDeadboltStatusQuery,
   patchDirectCommandEnvelopeImport,
   patchLockStateAdvertisement,
@@ -290,6 +292,8 @@ test('fails closed when the expected SDK code is not present', () => {
   assert.throws(() => patchNobleDbusDeviceRefresh('unexpected source'), /expected one match/);
   assert.throws(() => patchFastCommandDeviceConnect('unexpected source'), /expected one match/);
   assert.throws(() => patchFastCommandLockConnect('unexpected source'), /expected one match/);
+  assert.throws(() => patchFeatureListPersistence('unexpected source'), /expected one match/);
+  assert.throws(() => patchFeatureListRestore('unexpected source'), /expected one match/);
   assert.throws(() => patchNobleScanner('unexpected source'), /expected one match/);
   assert.throws(() => patchTargetedCommandDiscovery('unexpected source'), /expected one match/);
   assert.throws(() => patchTargetedNobleDiscovery('unexpected source'), /expected one match/);
@@ -357,4 +361,28 @@ test('does not infer room deadbolt state during command-only reconnect', () => {
   assert.match(patched, /else if \(this\.device\.isBicycleLock\)/);
   assert.doesNotMatch(patched, /else \{\s*this\.lockedStatus = LockedStatus_1\.LockedStatus\.LOCKED/);
   assert.equal(patchCommandConnectState(patched), patched);
+});
+
+test('restores a saved hardware feature list as an SDK Set', () => {
+  const source = '        this.privateData.pwdInfo = privateData.pwdInfo;';
+
+  const patched = patchFeatureListRestore(source);
+
+  assert.match(patched, /TT_LOCKSTAR_FEATURE_LIST_RESTORE/);
+  assert.match(patched, /this\.featureList = new Set/);
+  assert.match(patched, /data\.featureList\.filter\(Number\.isInteger\)/);
+  assert.equal(patchFeatureListRestore(patched), patched);
+});
+
+test('serializes hardware features and preserves disabled auto-lock', () => {
+  const source = `                autoLockTime: this.autoLockTime ? this.autoLockTime : -1,
+                lockedStatus: this.lockedStatus,
+                privateData: privateData,`;
+
+  const patched = patchFeatureListPersistence(source);
+
+  assert.match(patched, /TT_LOCKSTAR_FEATURE_LIST_PERSISTENCE/);
+  assert.match(patched, /Number\.isInteger\(this\.autoLockTime\)/);
+  assert.match(patched, /Array\.from\(this\.featureList\)/);
+  assert.equal(patchFeatureListPersistence(patched), patched);
 });

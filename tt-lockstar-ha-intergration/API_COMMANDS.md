@@ -91,6 +91,7 @@ Physical control and state:
 
 - `lock.lock`, `lock.unlock`
 - `lock.status.get`
+- `lock.features.get`
 - `lock.operations.get`
 
 Information and settings:
@@ -127,6 +128,8 @@ Credentials:
 - `lock.device_info.get` accepts `MODEL_NUMBER`, `HARDWARE_REVISION`, `FIRMWARE_REVISION`, `MANUFACTURE_DATE`, `MAC_ADDRESS`, `LOCK_CLOCK`, `NB_OPERATOR`, `NB_IMEI`, `NB_CARD_INFO`, or `NB_RSSI`. Unsupported fields may still be rejected by a particular lock.
 
 Use `capabilities` for exact argument metadata and risk classification rather than hard-coding this document alone.
+
+`lock.features.get` performs a read-only full metadata connection only when the SDK feature list is not already available. It returns numeric/name feature pairs and a summarized `supports` object, then persists the feature list for future add-on restarts. The saved list contains capability identifiers only—no passcodes, card numbers, fingerprints, or authentication secrets. Feature-gated auto-lock, sound, PIN, card, passage-mode, and remote-unlock commands use the same lazy bootstrap so a safe direct-ESPHome startup deferral cannot make supported hardware appear absent.
 
 ### Prepared connection
 

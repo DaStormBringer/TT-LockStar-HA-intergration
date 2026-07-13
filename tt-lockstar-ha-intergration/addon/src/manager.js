@@ -6,6 +6,7 @@ const {
   AudioManage,
   ConfigRemoteUnlock,
   DeviceInfoEnum,
+  FeatureValue,
   LockedStatus,
   LogOperate,
   LogOperateCategory,
@@ -452,7 +453,9 @@ class Manager extends EventEmitter {
   async setAutoLock(address, value) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasAutolock() || !(await this._connectLock(lock, false))) {
+      if (!(await this._ensureLockFeatures(lock))
+        || !lock.hasAutolock()
+        || !(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -469,7 +472,9 @@ class Manager extends EventEmitter {
   async getAutoLock(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasAutolock() || !(await this._connectLock(lock, false))) {
+      if (!(await this._ensureLockFeatures(lock))
+        || !lock.hasAutolock()
+        || !(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -481,6 +486,53 @@ class Manager extends EventEmitter {
       }
     }
     return false;
+  }
+
+  async _ensureLockFeatures(lock) {
+    if (lock?.featureList instanceof Set) return true;
+
+    console.log(`[Manager] Loading read-only hardware features for ${lock.getAddress()}`);
+    if (!(await this._connectLock(lock, true))) return false;
+    if (!(lock.featureList instanceof Set)) {
+      console.error(`[Manager] Hardware feature discovery returned no feature list for ${lock.getAddress()}`);
+      return false;
+    }
+
+    // The patched SDK serializes the feature set as an array. Persist it here
+    // immediately so direct ESPHome mode can keep its safe startup deferral
+    // without making supported settings and credential commands look absent.
+    await store.setLockData(this.client.getLockData());
+    this.emit("lockUpdated", lock);
+    return true;
+  }
+
+  async getLockFeatures(address) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock == "undefined") return false;
+    const cached = lock.featureList instanceof Set;
+    if (!(await this._ensureLockFeatures(lock))) return false;
+
+    const values = Array.from(lock.featureList)
+      .filter(Number.isInteger)
+      .sort((left, right) => left - right);
+    return {
+      address,
+      features: values.map(value => ({
+        value,
+        name: FeatureValue[value] || `UNKNOWN_${value}`,
+      })),
+      supports: {
+        autoLock: lock.hasAutolock(),
+        audio: lock.hasLockSound(),
+        passcode: lock.hasPassCode(),
+        card: lock.hasICCard(),
+        fingerprint: lock.hasFingerprint(),
+        passageMode: lock.featureList.has(FeatureValue.PASSAGE_MODE),
+        remoteUnlockConfiguration: lock.featureList.has(FeatureValue.CONFIG_GATEWAY_UNLOCK),
+      },
+      source: cached ? "saved-or-process-cache" : "live-read-only-discovery",
+      readOnly: true,
+    };
   }
 
   getLockStatusEvidence(address) {
@@ -653,7 +705,7 @@ class Manager extends EventEmitter {
   async addPasscode(address, type, passCode, startDate, endDate) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasPassCode()) {
+      if (!(await this._ensureLockFeatures(lock)) || !lock.hasPassCode()) {
         return false;
       }
       if (!(await this._connectLock(lock, false))) {
@@ -673,7 +725,7 @@ class Manager extends EventEmitter {
   async updatePasscode(address, type, oldPasscode, newPasscode, startDate, endDate) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasPassCode()) {
+      if (!(await this._ensureLockFeatures(lock)) || !lock.hasPassCode()) {
         return false;
       }
       if (!(await this._connectLock(lock, false))) {
@@ -693,7 +745,7 @@ class Manager extends EventEmitter {
   async deletePasscode(address, type, passCode) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasPassCode()) {
+      if (!(await this._ensureLockFeatures(lock)) || !lock.hasPassCode()) {
         return false;
       }
       if (!(await this._connectLock(lock, false))) {
@@ -712,7 +764,9 @@ class Manager extends EventEmitter {
 
   async clearPasscodes(address) {
     const lock = this.pairedLocks.get(address);
-    if (typeof lock != "undefined" && lock.hasPassCode()) {
+    if (typeof lock != "undefined"
+      && await this._ensureLockFeatures(lock)
+      && lock.hasPassCode()) {
       if (!(await this._connectLock(lock, false))) return false;
       try {
         const result = await lock.clearPassCodes();
@@ -734,7 +788,7 @@ class Manager extends EventEmitter {
     }
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasPassCode()) {
+      if (!(await this._ensureLockFeatures(lock)) || !lock.hasPassCode()) {
         return false;
       }
       if (!(await this._connectLock(lock, false))) {
@@ -756,7 +810,7 @@ class Manager extends EventEmitter {
   async addCard(address, startDate, endDate, alias, cardNumber) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasICCard()) {
+      if (!(await this._ensureLockFeatures(lock)) || !lock.hasICCard()) {
         return false;
       }
       if (!(await this._connectLock(lock, false))) {
@@ -777,7 +831,7 @@ class Manager extends EventEmitter {
   async updateCard(address, card, startDate, endDate, alias) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasICCard()) {
+      if (!(await this._ensureLockFeatures(lock)) || !lock.hasICCard()) {
         return false;
       }
       if (!(await this._connectLock(lock, false))) {
@@ -798,7 +852,7 @@ class Manager extends EventEmitter {
   async deleteCard(address, card) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasICCard()) {
+      if (!(await this._ensureLockFeatures(lock)) || !lock.hasICCard()) {
         return false;
       }
       if (!(await this._connectLock(lock, false))) {
@@ -818,7 +872,9 @@ class Manager extends EventEmitter {
 
   async clearCards(address) {
     const lock = this.pairedLocks.get(address);
-    if (typeof lock != "undefined" && lock.hasICCard()) {
+    if (typeof lock != "undefined"
+      && await this._ensureLockFeatures(lock)
+      && lock.hasICCard()) {
       if (!(await this._connectLock(lock, false))) return false;
       try {
         const result = await lock.clearICCards();
@@ -842,7 +898,7 @@ class Manager extends EventEmitter {
     }
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasICCard()) {
+      if (!(await this._ensureLockFeatures(lock)) || !lock.hasICCard()) {
         return false;
       }
       if (!(await this._connectLock(lock, false))) {
@@ -982,7 +1038,7 @@ class Manager extends EventEmitter {
   async setAudio(address, audio) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasLockSound()) {
+      if (!(await this._ensureLockFeatures(lock)) || !lock.hasLockSound()) {
         return false;
       }
       if (!(await this._connectLock(lock, false))) {
@@ -1003,7 +1059,9 @@ class Manager extends EventEmitter {
   async getAudio(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      if (!lock.hasLockSound() || !(await this._connectLock(lock, false))) {
+      if (!(await this._ensureLockFeatures(lock))
+        || !lock.hasLockSound()
+        || !(await this._connectLock(lock, false))) {
         return false;
       }
       try {
@@ -1017,7 +1075,10 @@ class Manager extends EventEmitter {
 
   async getPassageMode(address) {
     const lock = this.pairedLocks.get(address);
-    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    if (typeof lock == "undefined"
+      || !(await this._ensureLockFeatures(lock))
+      || !lock.featureList.has(FeatureValue.PASSAGE_MODE)
+      || !(await this._connectLock(lock, false))) return false;
     try {
       return await lock.getPassageMode();
     } catch (error) {
@@ -1028,7 +1089,10 @@ class Manager extends EventEmitter {
 
   async setPassageMode(address, data) {
     const lock = this.pairedLocks.get(address);
-    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    if (typeof lock == "undefined"
+      || !(await this._ensureLockFeatures(lock))
+      || !lock.featureList.has(FeatureValue.PASSAGE_MODE)
+      || !(await this._connectLock(lock, false))) return false;
     try {
       return await lock.setPassageMode(data);
     } catch (error) {
@@ -1039,7 +1103,10 @@ class Manager extends EventEmitter {
 
   async deletePassageMode(address, data) {
     const lock = this.pairedLocks.get(address);
-    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    if (typeof lock == "undefined"
+      || !(await this._ensureLockFeatures(lock))
+      || !lock.featureList.has(FeatureValue.PASSAGE_MODE)
+      || !(await this._connectLock(lock, false))) return false;
     try {
       return await lock.deletePassageMode(data);
     } catch (error) {
@@ -1050,7 +1117,10 @@ class Manager extends EventEmitter {
 
   async clearPassageMode(address) {
     const lock = this.pairedLocks.get(address);
-    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    if (typeof lock == "undefined"
+      || !(await this._ensureLockFeatures(lock))
+      || !lock.featureList.has(FeatureValue.PASSAGE_MODE)
+      || !(await this._connectLock(lock, false))) return false;
     try {
       return await lock.clearPassageMode();
     } catch (error) {
@@ -1061,7 +1131,10 @@ class Manager extends EventEmitter {
 
   async getRemoteUnlock(address) {
     const lock = this.pairedLocks.get(address);
-    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    if (typeof lock == "undefined"
+      || !(await this._ensureLockFeatures(lock))
+      || !lock.featureList.has(FeatureValue.CONFIG_GATEWAY_UNLOCK)
+      || !(await this._connectLock(lock, false))) return false;
     try {
       const value = await lock.setRemoteUnlock();
       if (typeof value == "undefined") return false;
@@ -1074,7 +1147,10 @@ class Manager extends EventEmitter {
 
   async setRemoteUnlock(address, enabled) {
     const lock = this.pairedLocks.get(address);
-    if (typeof lock == "undefined" || !(await this._connectLock(lock, false))) return false;
+    if (typeof lock == "undefined"
+      || !(await this._ensureLockFeatures(lock))
+      || !lock.featureList.has(FeatureValue.CONFIG_GATEWAY_UNLOCK)
+      || !(await this._connectLock(lock, false))) return false;
     try {
       const value = await lock.setRemoteUnlock(
         enabled ? ConfigRemoteUnlock.OP_OPEN : ConfigRemoteUnlock.OP_CLOSE,

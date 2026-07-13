@@ -119,6 +119,10 @@ const COMMANDS = Object.freeze([
     risk: 'read_only', readOnly: true,
     run: (manager, address) => manager.getLockStatusEvidence(address),
   }),
+  command('lock.features.get', 'Read and cache the lock hardware feature list.', {
+    risk: 'read_only', readOnly: true, disconnect: true,
+    run: (manager, address) => manager.getLockFeatures(address),
+  }),
   command('lock.device_info.get', 'Read one COMM_READ_DEVICE_INFO field.', {
     risk: 'read_only', readOnly: true, disconnect: true,
     args: { infoType: DEVICE_INFO_TYPES },
