@@ -10,6 +10,7 @@ const {
   markLockAdvertisement,
   refreshDbusDeviceCache,
   waitForFreshLockAdvertisement,
+  DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
 } = require('./connectionPolicy');
 
 const DEADBOLT_LOCK_RECORD_TYPES = LogOperateCategory.LOCK.filter(
@@ -836,7 +837,9 @@ class Manager extends EventEmitter {
       try {
         wasMonitoring = this.client.isMonitoring();
         if (wasMonitoring && process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'dbus') {
-          let advertisementAge = await waitForFreshLockAdvertisement(lock, { timeoutMs: 1500 });
+          let advertisementAge = await waitForFreshLockAdvertisement(lock, {
+            timeoutMs: DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
+          });
           if (advertisementAge === false) {
             const refreshed = await refreshDbusDeviceCache(lock);
             if (refreshed) {

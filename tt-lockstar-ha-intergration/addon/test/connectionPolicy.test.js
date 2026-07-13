@@ -6,6 +6,7 @@ const test = require('node:test');
 const {
   DEFAULT_ADVERTISEMENT_FRESHNESS_MS,
   DEFAULT_ADVERTISEMENT_WAIT_MS,
+  DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
   DEFAULT_COMMAND_CONNECT_TIMEOUT_MS,
   DEFAULT_CLEANUP_TIMEOUT_MS,
   DEFAULT_FULL_CONNECT_TIMEOUT_MS,
@@ -22,8 +23,9 @@ const {
 } = require('../src/connectionPolicy');
 
 test('uses a short command timeout without shortening metadata refreshes', () => {
-  assert.equal(DEFAULT_ADVERTISEMENT_FRESHNESS_MS, 1000);
+  assert.equal(DEFAULT_ADVERTISEMENT_FRESHNESS_MS, 10000);
   assert.equal(DEFAULT_ADVERTISEMENT_WAIT_MS, 6000);
+  assert.equal(DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS, 15000);
   assert.equal(DEFAULT_COMMAND_CONNECT_TIMEOUT_MS, 12000);
   assert.equal(DEFAULT_CLEANUP_TIMEOUT_MS, 1500);
   assert.equal(DEFAULT_FULL_CONNECT_TIMEOUT_MS, 55000);
