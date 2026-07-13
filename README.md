@@ -15,7 +15,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.49`
+- Add-on version: `0.1.0-alpha.50`
 - Home Assistant stage: `experimental`
 - Development branch: `main`
 - Target: Home Assistant on Linux
@@ -107,7 +107,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.49 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.50 \
   ./tt-lockstar-ha-intergration
 ```
 

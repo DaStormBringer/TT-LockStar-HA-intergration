@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.50] - 2026-07-13
+
+- Bound a speculative cached ESPHome BLE connection to four seconds before falling back to a normal service-discovery connection.
+- Preserve the known GATT table after a connection timeout; a timeout does not prove the characteristic handles are stale, and explicit GATT-failure recovery can still clear both local and remote caches.
+- Add bridge regressions for bounded cached-connect fallback, cache preservation, and explicit cache clearing.
+- Record the alpha.49 supervised M302 cycle: unlock succeeded physically in 1.84 seconds; lock succeeded physically in 18.14 seconds, of which 13.813 seconds were BLE/GATT connection setup after a cached-connect timeout.
+- Pass 85 JavaScript tests and 8 ESPHome bridge tests in the built `amd64` alpha.50 image; verify the packaged SDK remains 0.3.34.
+
 ## [0.1.0-alpha.49] - 2026-07-13
 
 - Add optional top-level string or numeric `requestId` correlation to generic `capabilities` and `command` requests, their direct replies, and command errors. Legacy clients that omit the field retain the existing response shape.

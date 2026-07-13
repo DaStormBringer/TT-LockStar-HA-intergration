@@ -20,6 +20,13 @@ from aioesphomeapi import APIClient
 from aioesphomeapi.model import BluetoothProxyFeature, BluetoothScannerMode
 
 
+# A cached ESPHome connection should report as soon as the BLE link opens; it
+# does not wait for service discovery.  If it cannot open promptly, keep the
+# known GATT table and fall back to a normal connection instead of spending the
+# full command window on a speculative cache hit.
+CACHED_CONNECT_ATTEMPT_TIMEOUT_SECONDS = 4.0
+
+
 def log(message: str) -> None:
     print(f"[ESPHome proxy bridge] {message}", file=sys.stderr, flush=True)
 
@@ -435,11 +442,16 @@ class Bridge:
             attempts = [True, False] if cache_available else [False]
             for use_cache in attempts:
                 state.update(connected=False, mtu=0, error=0)
+                attempt_timeout = (
+                    min(timeout, CACHED_CONNECT_ATTEMPT_TIMEOUT_SECONDS)
+                    if use_cache
+                    else timeout
+                )
                 try:
                     unsubscribe = await proxy.client.bluetooth_device_connect(
                         address,
                         on_connection,
-                        timeout=timeout,
+                        timeout=attempt_timeout,
                         feature_flags=proxy.feature_flags,
                         has_cache=use_cache,
                         address_type=address_type,
@@ -469,18 +481,10 @@ class Bridge:
                     if use_cache:
                         log(
                             f"cached connect {int_to_mac(address)} through {proxy.name} "
-                            f"failed; invalidating cache and retrying uncached: {error}"
+                            f"failed after {attempt_timeout:.1f}s; preserving GATT cache "
+                            f"and retrying uncached: {error}"
                         )
-                        self.gatt_cache.pop(address, None)
-                        self.mtu_cache.pop(address, None)
                         self.active_cache_hits.discard(address)
-                        try:
-                            await proxy.client.bluetooth_device_clear_cache(address)
-                        except Exception as clear_error:  # pylint: disable=broad-except
-                            log(
-                                f"remote cache clear for {int_to_mac(address)} failed: "
-                                f"{clear_error}"
-                            )
                         continue
                     errors.append(f"{proxy.name}: {error}")
                     log(f"connect {int_to_mac(address)} through {proxy.name} failed: {error}")

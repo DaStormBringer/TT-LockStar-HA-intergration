@@ -1,6 +1,6 @@
 {
   "name": "tt-lockstar-ha-intergration",
-  "version": "0.1.0-alpha.49",
+  "version": "0.1.0-alpha.50",
   "description": "Integration of the offline TTLock sdk into Home Assistant",
   "main": "index.js",
   "scripts": {
