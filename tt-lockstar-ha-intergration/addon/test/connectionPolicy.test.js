@@ -211,6 +211,43 @@ test('rejects a hung SDK connection at the hard timeout', async () => {
   assert.equal(isConnectionRetrySafe(lock), true);
 });
 
+test('clears a native BlueZ setup error before the manager retries', async () => {
+  let cancelCalls = 0;
+  const peripheral = {
+    state: 'error',
+    cancelConnect: () => { cancelCalls += 1; },
+  };
+  const nativeDevice = {
+    connecting: true,
+    connected: false,
+    services: new Map([['1910', {}]]),
+    peripheral,
+    resetBusy: () => {},
+  };
+  const lock = {
+    connecting: true,
+    connected: false,
+    skipDataRead: true,
+    device: {
+      connected: false,
+      device: nativeDevice,
+    },
+    connect: async () => { throw new Error('le-connection-abort-by-local'); },
+  };
+
+  await assert.rejects(
+    connectWithPolicy(lock, { readData: false, timeoutMs: 100 }),
+    /le-connection-abort-by-local/,
+  );
+
+  assert.equal(cancelCalls, 0);
+  assert.equal(lock.connecting, false);
+  assert.equal(lock.skipDataRead, false);
+  assert.equal(nativeDevice.connecting, false);
+  assert.equal(nativeDevice.services.size, 0);
+  assert.equal(isConnectionRetrySafe(lock), true);
+});
+
 test('waits for a cancelled HCI connection to drain before allowing a retry', async () => {
   let cancelCalls = 0;
   let disconnectCalls = 0;

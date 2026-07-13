@@ -13,7 +13,7 @@ Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or o
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.26`
+- Add-on version: `0.1.0-alpha.27`
 - Home Assistant stage: `experimental`
 - Development branch: `codex/faster-lock-commands`
 - Target: Home Assistant on Linux
@@ -96,7 +96,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.26 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.27 \
   ./tt-lockstar-ha-intergration
 ```
 
@@ -109,7 +109,7 @@ Building an image does not validate Bluetooth behavior. Final testing must occur
 - Lock pairing material, administrative data, credentials, and operation logs are stored in add-on data and may be included in backups. Protect both.
 - Do not expose the add-on API or Ingress service directly to the internet.
 - Native Bluetooth behavior depends on adapter hardware, driver support, signal quality, D-Bus, and host networking.
-- Alpha.26 keeps raw HCI as the default and adds a native `bluez` option that implements the SDK scanner/device boundary directly over BlueZ D-Bus without Noble. The older Noble-backed `dbus` path remains available only for comparison during supervised experiments.
+- Alpha.27 keeps raw HCI as the default and retains the native `bluez` option that completed authenticated metadata reads without Noble. It resets every failed connection setup so the bounded native BlueZ retry can actually reconnect.
 - The image installs both transports, compiles the raw-HCI native binding, explicitly builds the pinned TTLock SDK commit, and then runs the fail-closed patch step.
 - `npm audit --omit=dev` reports 7 moderate, 7 high, and 2 critical findings. Most high/critical findings are inherited through the legacy raw-HCI build/install dependency chain. There is no safe automatic upgrade for the pinned runtime; keep the add-on local-only and do not use `npm audit fix --force`.
 - Generated frontend assets are committed because the Home Assistant add-on image copies the prebuilt interface.

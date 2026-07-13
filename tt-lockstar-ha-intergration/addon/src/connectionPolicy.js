@@ -163,9 +163,10 @@ async function connectWithPolicy(lock, {
       }),
     ]);
   } catch (error) {
-    if (error instanceof LockConnectTimeoutError) {
-      await cancelStaleLockConnection(lock);
-    }
+    // A native BlueZ Connect error can leave TTLock.connecting set even though
+    // Device1.Connect has already failed. Drain/reset every failed setup so the
+    // manager's bounded retry performs a real second connection attempt.
+    await cancelStaleLockConnection(lock);
     throw error;
   } finally {
     if (timer) clearTimeout(timer);

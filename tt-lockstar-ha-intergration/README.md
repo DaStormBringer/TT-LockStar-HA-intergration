@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.26`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.27`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -42,7 +42,7 @@ Alpha.14 replaced the former `@abandonware/noble` raw-HCI runtime with `@stoproc
 
 Alpha.15 invalidates stale D-Bus `Connected` and `ServicesResolved` cache entries after a remote disconnect and gives command-only connections a shorter setup path that discovers the TTLock service without rereading cached generic device information. The image must still pass another supervised open-door hardware test before this change can be considered validated.
 
-Alpha.26 adds a native `bluez` option that bypasses Noble and implements discovery, connection, GATT enumeration, notifications, reads, and writes directly through BlueZ D-Bus. It retains the TTLock protocol and credential layers. New installations still default to the legacy raw-HCI transport that completed the alpha.13 supervised physical test, and all transports remain unsuitable for unattended lock control.
+Alpha.27 retains the native `bluez` option that bypasses Noble and implements discovery, connection, GATT enumeration, notifications, reads, and writes directly through BlueZ D-Bus. Its first hardware session completed authenticated metadata reads and disconnected cleanly; the following unlock failed before writing a command, and alpha.27 resets that failed setup so retry two can reconnect. New installations still default to legacy raw HCI, and all transports remain unsuitable for unattended lock control.
 
 The installed alpha.16 image completed a supervised open-door physical cycle. Unlock returned `true` on the first manager attempt, the bolt retracted, and Home Assistant changed to `unlocked`. An immediate relock then failed: attempt 1 hit the 55-second hard timeout and attempts 2–3 could not connect, leaving the bolt physically retracted. Restarting only this add-on cleared Noble's stale raw-HCI session; the following lock returned `true` on its first manager attempt, extended the bolt, and changed Home Assistant to `locked`. Raw HCI can operate the lock, but sequential command recovery remains a blocking reliability defect.
 

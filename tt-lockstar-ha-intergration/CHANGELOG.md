@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.27] - 2026-07-12
+
+- Record that alpha.26 native BlueZ connected in about 10.3 seconds, completed multiple authenticated metadata reads and responses, and disconnected cleanly without loading Noble.
+- Record that the first supervised unlock connection returned `le-connection-abort-by-local`; no unlock payload was written, and retry two exited immediately because the SDK retained its failed `connecting` flag.
+- Drain and reset every failed Bluetooth setup, not only outer timeouts, so the manager's bounded retry performs a real second BlueZ connection attempt.
+- Add regression coverage for native BlueZ connection errors leaving the SDK in a retryable state.
+
 ## [0.1.0-alpha.26] - 2026-07-12
 
 - Record that a synchronized alpha.25 awake-keypad test still produced no Noble discovery or update event; both attempts failed closed before connecting or writing a command.
