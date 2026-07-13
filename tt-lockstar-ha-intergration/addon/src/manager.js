@@ -7,7 +7,7 @@ const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationSta
 const {
   connectWithPolicy,
   isConnectionRetrySafe,
-  markLockAdvertisement,
+  markLockAndStoredAdvertisement,
   refreshDbusDeviceCache,
   waitForFreshLockAdvertisement,
   DEFAULT_WAKE_ADVERTISEMENT_WAIT_MS,
@@ -967,9 +967,8 @@ class Manager extends EventEmitter {
    * @param {import('ttlock-sdk-js').TTLock} lock 
    */
   async _onFoundLock(lock) {
-    markLockAdvertisement(lock);
     const storedLock = this.pairedLocks.get(lock.getAddress());
-    if (storedLock && storedLock !== lock) markLockAdvertisement(storedLock);
+    markLockAndStoredAdvertisement(lock, storedLock);
     let listChanged = false;
     if (lock.isPaired()) {
       // check if lock is known
@@ -1097,6 +1096,11 @@ class Manager extends EventEmitter {
    */
   async _onLockUpdated(lock, paramsChanged) {
     const address = lock.getAddress();
+    markLockAndStoredAdvertisement(lock, this.pairedLocks.get(address));
+    if (this.lockMutexes.has(address)) {
+      console.log(`[Bluetooth][D-Bus] Recorded live lock update for pending connection ${address}`);
+      return;
+    }
     if (this.processingLocks.has(address)) {
       console.log(`[Manager] Already processing update for lock ${address}, skipping concurrent run.`);
       return;

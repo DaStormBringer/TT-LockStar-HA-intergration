@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.25] - 2026-07-12
+
+- Record that alpha.24 received a live SDK `lockUpdated` wake event, but the D-Bus Noble path did not emit the separate `foundLock` event watched by the freshness gate; both unlock cycles failed closed before connecting or writing a command.
+- Treat the SDK's live lock update as a fresh advertisement and copy its timestamp to the stored command lock.
+- Do not let an advertisement update disconnect or release the mutex of a command that is waiting for that same wake signal.
+- Add regression coverage for copying a live update timestamp between the discovered and stored lock instances.
+
 ## [0.1.0-alpha.24] - 2026-07-12
 
 - Record that alpha.23 safely refreshed only the target's unpaired BlueZ cache and wrote no command when the lock did not rediscover during either freshness window.
