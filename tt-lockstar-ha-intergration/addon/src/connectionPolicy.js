@@ -96,6 +96,11 @@ function markLockAdvertisement(lock, timestamp = Date.now()) {
   if (lock) lock[LAST_ADVERTISEMENT_PROPERTY] = timestamp;
 }
 
+function markLockAndStoredAdvertisement(lock, storedLock, timestamp = Date.now()) {
+  markLockAdvertisement(lock, timestamp);
+  if (storedLock && storedLock !== lock) markLockAdvertisement(storedLock, timestamp);
+}
+
 function getLockAdvertisementAge(lock, now = Date.now()) {
   const timestamp = Number(lock?.[LAST_ADVERTISEMENT_PROPERTY]);
   if (!Number.isFinite(timestamp)) return Infinity;
@@ -178,6 +183,7 @@ module.exports = {
   connectWithPolicy,
   getLockAdvertisementAge,
   isConnectionRetrySafe,
+  markLockAndStoredAdvertisement,
   markLockAdvertisement,
   refreshDbusDeviceCache,
   waitForFreshLockAdvertisement,

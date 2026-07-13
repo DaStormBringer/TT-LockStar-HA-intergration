@@ -17,6 +17,7 @@ const {
   connectWithPolicy,
   getLockAdvertisementAge,
   isConnectionRetrySafe,
+  markLockAndStoredAdvertisement,
   markLockAdvertisement,
   refreshDbusDeviceCache,
   waitForFreshLockAdvertisement,
@@ -39,6 +40,15 @@ test('marks and measures the newest lock advertisement', () => {
   assert.equal(lock[LAST_ADVERTISEMENT_PROPERTY], 1000);
   assert.equal(getLockAdvertisementAge(lock, 1250), 250);
   assert.equal(getLockAdvertisementAge({}, 1250), Infinity);
+});
+
+test('copies a live SDK update timestamp to the stored command lock', () => {
+  const discoveredLock = {};
+  const storedLock = {};
+  markLockAndStoredAdvertisement(discoveredLock, storedLock, 2500);
+
+  assert.equal(discoveredLock[LAST_ADVERTISEMENT_PROPERTY], 2500);
+  assert.equal(storedLock[LAST_ADVERTISEMENT_PROPERTY], 2500);
 });
 
 test('waits for a fresh advertisement before connecting', async () => {
