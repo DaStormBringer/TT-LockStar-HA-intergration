@@ -39,7 +39,7 @@ The merged `amd64` Alpine image builds successfully. The declared `aarch64` targ
 
 ### Tested compatibility scope
 
-Hardware compatibility is claimed only for the user's **M302** lock and the firmware currently installed on that device. The current SDK metadata reports that firmware value as `unknown`, so this README does not claim compatibility with any other M302 firmware or any other lock model. Replace `unknown` only after the dedicated read-only firmware request returns the exact value from this physical lock; do not broaden this statement from a protocol-only or simulated test.
+Hardware compatibility is claimed only for the user's **M302** lock running firmware **6.4.43.24052101**. That value was returned by this physical lock on 2026-07-13 through the dedicated read-only `COMM_READ_DEVICE_INFO` / `FIRMWARE_REVISION` request using the Craft Everything Presence Lite proxy. This README does not claim compatibility with any other M302 firmware or any other lock model.
 
 Detailed per-release changes and supervised hardware-test results are maintained in [UPDATE_NOTES.md](UPDATE_NOTES.md). The shorter [CHANGELOG.md](CHANGELOG.md) remains the release-oriented summary.
 

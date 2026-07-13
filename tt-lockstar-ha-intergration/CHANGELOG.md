@@ -5,6 +5,7 @@
 - In direct ESPHome advertisement mode, discover paired locks without automatically consuming their first connectable wake for a full metadata refresh.
 - Preserve that first connection for an explicit firmware, status, or actuator request; no actuator command is added or changed.
 - Keep shared Home Assistant advertisement behavior unchanged.
+- Validate the read-only firmware route on the user's physical M302, which returned firmware `6.4.43.24052101` through the dedicated Craft ESPHome proxy.
 
 ## [0.1.0-alpha.46] - 2026-07-13
 
