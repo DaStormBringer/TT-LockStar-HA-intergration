@@ -178,6 +178,7 @@ class EsphomeProxyScanner extends EventEmitter {
     this.uuids = [...new Set(uuids.map(normalizeUuid))];
     this.bridge = options.bridge || new EsphomeProxyBridge(options);
     this.devices = new Map();
+    this.targetAddresses = new Set();
     this.scannerState = 'unknown';
     this.scanning = false;
     this.initialDevicesSurfaced = false;
@@ -209,6 +210,12 @@ class EsphomeProxyScanner extends EventEmitter {
 
   getState() { return this.scannerState; }
 
+  setTargetAddresses(addresses) {
+    this.targetAddresses = new Set(
+      [...addresses].map(address => String(address).toUpperCase()),
+    );
+  }
+
   async startScan() {
     await this._initPromise;
     if (!this.bridge.ready) throw new Error('ESPHome proxy bridge is unavailable');
@@ -232,6 +239,7 @@ class EsphomeProxyScanner extends EventEmitter {
   }
 
   _matchesFilter(device) {
+    if (this.targetAddresses.has(String(device.address).toUpperCase())) return true;
     if (this.uuids.length === 0) return true;
     return device.serviceUuids.some(uuid => this.uuids.includes(normalizeUuid(uuid)));
   }
@@ -637,6 +645,7 @@ class EsphomeProxyTTLockClient extends EventEmitter {
   async prepareBTService() {
     if (this.bleService !== null) return true;
     this.bleService = new EsphomeProxyBluetoothLeService(this.uuids, this.options);
+    this.bleService.scanner.setTargetAddresses(this.lockData.keys());
     this.bleService.on('ready', () => {
       this.adapterReady = true;
       this.emit('ready');
@@ -697,6 +706,7 @@ class EsphomeProxyTTLockClient extends EventEmitter {
       this.lockData.set(lockData.address, lockData);
       this.lockDevices.get(lockData.address)?.updateLockData(lockData);
     }
+    this.bleService?.scanner?.setTargetAddresses(this.lockData.keys());
   }
 
   onScanStart() {

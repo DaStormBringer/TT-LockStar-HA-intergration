@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0-alpha.33] - 2026-07-12
+
+- Accept an ESPHome advertisement from the exact MAC address of a stored paired lock even when the packet omits TTLock service UUID `1910`.
+- Keep UUID filtering for every unknown address, so unrelated Bluetooth advertisements are not passed into the TTLock SDK.
+- Add deterministic coverage proving a paired M302 address passes the filter while an unrelated UUID-less address remains rejected.
+
 ## [0.1.0-alpha.32] - 2026-07-12
 
 - Explicitly request active scanning whenever the local ESPHome proxy bridge connects, so short M302 keypad-wake advertisements are less likely to be missed.
