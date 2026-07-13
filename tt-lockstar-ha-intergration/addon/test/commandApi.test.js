@@ -19,9 +19,9 @@ test('capability catalog covers the complete high-level SDK command surface', ()
   const capabilities = api.getCapabilities();
   const names = new Set(capabilities.map(item => item.name));
 
-  assert.equal(capabilities.length, 40);
+  assert.equal(capabilities.length, 41);
   for (const name of [
-    'lock.lock', 'lock.unlock', 'lock.status.get', 'lock.device_info.get',
+    'lock.connection.prepare', 'lock.lock', 'lock.unlock', 'lock.status.get', 'lock.device_info.get',
     'lock.time.get', 'lock.time.sync', 'lock.auto_lock.get', 'lock.auto_lock.set',
     'lock.audio.get', 'lock.audio.set', 'lock.passage_mode.get',
     'lock.passage_mode.set', 'lock.passage_mode.delete', 'lock.passage_mode.clear',
@@ -56,6 +56,30 @@ test('read command validates, dispatches, and disconnects', async () => {
     ['getLockTime', ADDRESS],
     ['disconnectLock', ADDRESS],
   ]);
+});
+
+test('prepared connection is read-only, bounded, and does not auto-disconnect', async () => {
+  const calls = [];
+  const manager = fakeManager({
+    prepareLockConnection: async (address, holdSeconds) => {
+      calls.push([address, holdSeconds]);
+      return { connected: true, holdSeconds, readOnly: true };
+    },
+  });
+  const api = new CommandApi(manager);
+
+  const result = await api.execute({
+    name: 'lock.connection.prepare', address: ADDRESS, args: { holdSeconds: 20 },
+  });
+
+  assert.equal(result.readOnly, true);
+  assert.equal(result.result.connected, true);
+  assert.deepEqual(calls, [[ADDRESS, 20]]);
+  assert.equal(api.getCapabilities().find(item => item.name === 'lock.connection.prepare').autoDisconnect, false);
+  await assert.rejects(
+    api.execute({ name: 'lock.connection.prepare', address: ADDRESS, args: { holdSeconds: 31 } }),
+    /holdSeconds must be an integer from 5 through 30/,
+  );
 });
 
 test('actuator and destructive commands require exact per-lock confirmation', async () => {

@@ -60,6 +60,11 @@ function requireInteger(args, name, minimum, maximum) {
   return value;
 }
 
+function optionalInteger(args, name, minimum, maximum, fallback) {
+  if (args[name] === undefined) return fallback;
+  return requireInteger(args, name, minimum, maximum);
+}
+
 function normalizePassageMode(args) {
   const data = requireObject(args.data, 'data');
   let type = data.type;
@@ -95,6 +100,12 @@ const COMMANDS = Object.freeze([
   command('lock.disconnect', 'End the current BLE session.', {
     risk: 'local', readOnly: false,
     run: (manager, address) => manager.disconnectLock(address),
+  }),
+  command('lock.connection.prepare', 'Open a command-ready BLE session briefly so a following command can reuse it.', {
+    risk: 'read_only', readOnly: true,
+    args: { holdSeconds: 'optional integer 5..30; default 15' },
+    validate: args => ({ holdSeconds: optionalInteger(args, 'holdSeconds', 5, 30, 15) }),
+    run: (manager, address, args) => manager.prepareLockConnection(address, args.holdSeconds),
   }),
   command('lock.lock', 'Physically engage the deadbolt.', {
     risk: 'actuator', readOnly: false, confirmationRequired: true, disconnect: true,

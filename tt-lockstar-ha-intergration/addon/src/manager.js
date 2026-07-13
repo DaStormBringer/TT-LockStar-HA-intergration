@@ -18,6 +18,7 @@ const TTLockClient = NATIVE_TRANSPORTS.includes(process.env.TTLOCK_BLUETOOTH_TRA
   ? null
   : require('ttlock-sdk-js/dist/TTLockClient').TTLockClient;
 const { DoorState, OperationState, inferLatestDoorState, inferLatestOperationState } = require('./operationState');
+const PreparedConnectionRegistry = require('./preparedConnectionRegistry');
 const {
   connectWithPolicy,
   getCommandAdvertisementFreshnessMs,
@@ -37,6 +38,7 @@ const DEADBOLT_UNLOCK_RECORD_TYPES = LogOperateCategory.UNLOCK.filter(
   recordType => recordType !== LogOperate.DOOR_SENSOR_UNLOCK,
 );
 const FIRMWARE_READ_WAKE_WAIT_MS = 60000;
+const DEFAULT_PRECONNECT_HOLD_SECONDS = 15;
 
 function usesBluezDbus() {
   return ['dbus', 'bluez'].includes(process.env.TTLOCK_BLUETOOTH_TRANSPORT);
@@ -158,6 +160,7 @@ class Manager extends EventEmitter {
     this.scanning = false;
     this.interacting = false;
     this.lockMutexes = new Map();
+    this.preparedConnections = new PreparedConnectionRegistry();
     /** @type {NodeJS.Timeout} */
     this.scanTimer = undefined;
     this.scanCounter = 0;
@@ -321,6 +324,7 @@ class Manager extends EventEmitter {
   }
 
   async disconnectLock(address) {
+    this.preparedConnections.clear(address);
     const lock = this.pairedLocks.get(address);
     this.interacting = false;
     if (typeof lock != "undefined" && lock.isConnected()) {
@@ -339,6 +343,46 @@ class Manager extends EventEmitter {
       this.lockMutexes.delete(address);
       mutex.resolve();
     }
+  }
+
+  async prepareLockConnection(address, holdSeconds = DEFAULT_PRECONNECT_HOLD_SECONDS) {
+    const lock = this.pairedLocks.get(address);
+    if (typeof lock == "undefined") return false;
+
+    let existing = this.preparedConnections.get(address);
+    while (!existing && this.lockMutexes.has(address)) {
+      console.log(`[Manager] Connection preparation for ${address} is waiting for the active command to finish`);
+      await this.lockMutexes.get(address).promise;
+      existing = this.preparedConnections.get(address);
+    }
+    if (existing && !lock.isConnected()) {
+      await this.disconnectLock(address);
+    }
+    if (!lock.isConnected() && !(await this._connectLock(lock, false))) {
+      return false;
+    }
+
+    const holdMs = holdSeconds * 1000;
+    const { expiresAt } = this.preparedConnections.schedule(address, holdMs, async () => {
+      console.log(`[Manager] Prepared connection for ${address} expired after ${holdSeconds}s`);
+      await this.disconnectLock(address);
+    });
+    console.log(`[Manager] Prepared command-ready connection for ${address}; holding up to ${holdSeconds}s`);
+    return {
+      address,
+      connected: true,
+      holdSeconds,
+      expiresAt: new Date(expiresAt).toISOString(),
+      readOnly: true,
+    };
+  }
+
+  _claimPreparedConnection(lock) {
+    const address = lock.getAddress();
+    if (!lock.isConnected() || !this.preparedConnections.get(address)) return false;
+    this.preparedConnections.claim(address);
+    console.log(`[Manager] Reusing prepared command-ready connection for ${address}`);
+    return true;
   }
 
   async unlockLock(address) {
@@ -1144,6 +1188,7 @@ class Manager extends EventEmitter {
   async _connectLock(lock, readData = true) {
     if (this.scanning) return false;
     const address = lock.getAddress();
+    if (this._claimPreparedConnection(lock)) return true;
     const mutexWaitStartedAt = Date.now();
     let waitedForMutex = false;
     while (this.lockMutexes.has(address)) {
@@ -1434,7 +1479,20 @@ class Manager extends EventEmitter {
    * @param {import('ttlock-sdk-js').TTLock} lock 
    */
   async _onLockDisconnected(lock) {
-    console.log("Disconnected from lock " + lock.getAddress());
+    const address = lock.getAddress();
+    console.log("Disconnected from lock " + address);
+    const prepared = this.preparedConnections.clear(address);
+    if (prepared) {
+      console.log(`[Manager] Prepared connection for ${address} ended before its deadline`);
+      this.interacting = false;
+      const mutex = this.lockMutexes.get(address);
+      if (mutex) {
+        this.lockMutexes.delete(address);
+        mutex.resolve();
+      }
+      this.client.startMonitor();
+      return;
+    }
     if (this.interacting) {
       console.log("[Manager] Skipping monitor auto-restart because an interaction is in progress");
       return;
@@ -1586,3 +1644,5 @@ class Manager extends EventEmitter {
 const manager = new Manager();
 
 module.exports = manager;
+module.exports.Manager = Manager;
+module.exports.DEFAULT_PRECONNECT_HOLD_SECONDS = DEFAULT_PRECONNECT_HOLD_SECONDS;

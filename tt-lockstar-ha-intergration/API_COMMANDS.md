@@ -3,7 +3,7 @@
 > [!CAUTION]
 > This API controls a physical lock and exposes sensitive credential data. Keep it behind Home Assistant authentication on a trusted local network. Do not treat a software success response as physical bolt verification.
 
-Alpha.48 introduced a generic, capability-discoverable API at the existing `/api` WebSocket endpoint. Alpha.49 adds optional request correlation without changing the command catalog. Existing frontend message types such as `status`, `lock`, `unlock`, `credentials`, `settings`, and `firmware` remain supported.
+Alpha.48 introduced a generic, capability-discoverable API at the existing `/api` WebSocket endpoint. Alpha.49 added optional request correlation. Alpha.51 adds a bounded, read-only prepared connection for latency-sensitive local workflows. Existing frontend message types such as `status`, `lock`, `unlock`, `credentials`, `settings`, and `firmware` remain supported.
 
 ## Discover commands
 
@@ -84,7 +84,7 @@ Confirmation protects the generic API from accidental calls; it does not make un
 System and lifecycle:
 
 - `system.scan.start`, `system.scan.stop`
-- `lock.pair`, `lock.disconnect`
+- `lock.pair`, `lock.connection.prepare`, `lock.disconnect`
 - `lock.reset`
 
 Physical control and state:
@@ -118,6 +118,7 @@ Credentials:
 
 - Addresses use `AA:BB:CC:DD:EE:FF` format.
 - `forceRefresh` is an optional boolean for credential and operation-log reads.
+- `lock.connection.prepare` accepts optional `holdSeconds` from 5 through 30 and defaults to 15.
 - Dates use `YYYYMMDDHHmm`.
 - Passcodes contain 4 through 9 digits; types are 1 through 4 as defined by the pinned SDK.
 - `lock.auto_lock.set` accepts `seconds` from 0 through 300; zero disables auto-lock.
@@ -126,6 +127,24 @@ Credentials:
 - `lock.device_info.get` accepts `MODEL_NUMBER`, `HARDWARE_REVISION`, `FIRMWARE_REVISION`, `MANUFACTURE_DATE`, `MAC_ADDRESS`, `LOCK_CLOCK`, `NB_OPERATOR`, `NB_IMEI`, `NB_CARD_INFO`, or `NB_RSSI`. Unsupported fields may still be rejected by a particular lock.
 
 Use `capabilities` for exact argument metadata and risk classification rather than hard-coding this document alone.
+
+### Prepared connection
+
+The sleeping lock can take several seconds to emit its next connectable advertisement. A local presence event may prepare the BLE/GATT session before a separately authorized action:
+
+```json
+{
+  "type": "command",
+  "requestId": "prepare-1",
+  "data": {
+    "name": "lock.connection.prepare",
+    "address": "AA:BB:CC:DD:EE:FF",
+    "args": {"holdSeconds": 15}
+  }
+}
+```
+
+Preparation is read-only and does not require actuator confirmation. It sends no authentication, lock, or unlock payload. If no following command claims the session, the add-on disconnects automatically at the deadline. A claimed session is still subject to the authentication, validation, and exact-confirmation requirements of the following command. Keep the window short: an active session consumes lock battery and may temporarily contend with the TTLock app or G2 gateway.
 
 ## Safety and scope boundaries
 
@@ -138,4 +157,4 @@ The following are intentionally not exposed:
 - A direct `getLockStatus` query on the tested room deadbolt. The pinned SDK's command represents a bicycle-lock status path and is not valid deadbolt evidence for this M302. `lock.status.get` therefore returns only the last state confirmed by a successful local command or explicit operation-log record, plus the separately tracked magnetic door contact.
 - Automatic retries for credential, passage-mode, remote-unlock, settings, clear-all, or reset mutations. Repeating those operations could create duplicate or destructive effects.
 
-ESPHome GATT caching in alpha.48 caches only the discovered service table and MTU within the running bridge process. It never caches TTLock authentication challenges and automatically invalidates before an uncached retry if a cached connection or handle fails.
+ESPHome GATT caching stores only the discovered service table and MTU within the running bridge process. Alpha.50 bounds a failed cached connection at four seconds, preserves the table on connection-only timeouts, and still permits explicit invalidation for GATT handle failures. It never caches TTLock authentication challenges. Alpha.51's prepared session is a live, automatically expiring BLE connection rather than cached authentication data.

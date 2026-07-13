@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.51] - 2026-07-13
+
+- Add read-only `lock.connection.prepare`, which opens a command-ready BLE session and holds it for a caller-selected 5 through 30 seconds (15 seconds by default) so the next command can reuse it. It does not pre-authenticate or bypass the following command's authentication.
+- Automatically disconnect an unused prepared session at its deadline, release the connection mutex after an unexpected link loss, and leave exact per-lock confirmation unchanged for physical lock/unlock commands.
+- Record the physically confirmed alpha.50 unlock: 7.287 seconds total, dominated by a 5.584-second wait for the sleeping M302's next advertisement; the cached connection took 1.100 seconds and authenticated unlock took 601 milliseconds.
+- Keep prepared-session automation disabled pending a supervised test proving that an early presence event can absorb the advertisement delay without unacceptable battery or TTLock app/G2 contention.
+- Pass 92 JavaScript tests and 8 ESPHome bridge tests in the built `amd64` image; verify add-on 0.1.0-alpha.51, SDK 0.3.34, and 41 exposed commands. The inherited audit count remains 7 moderate, 7 high, and 2 critical.
+
 ## [0.1.0-alpha.50] - 2026-07-13
 
 - Bound a speculative cached ESPHome BLE connection to four seconds before falling back to a normal service-discovery connection.

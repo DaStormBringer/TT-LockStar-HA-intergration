@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.50`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.51`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 ## Critical limitations
 
@@ -50,6 +50,7 @@ Detailed per-release changes and supervised hardware-test results are maintained
 - Ingress interface for discovery and management
 - Multiple-lock support
 - Lock and unlock
+- Bounded read-only prepared connections that automatically expire after 5 through 30 seconds
 - Auto-lock settings up to 300 seconds
 - Lock sound management
 - PIN, IC card, and fingerprint management
