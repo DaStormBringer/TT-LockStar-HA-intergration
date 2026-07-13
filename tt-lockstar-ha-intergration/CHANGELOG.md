@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0-alpha.46] - 2026-07-13
+
+- Infer a missing static-random BLE address type when Home Assistant's shared advertisement feed omits `address_type`, while preserving explicit types supplied by ESPHome.
+- Keep the ESPHome bridge request open long enough for the existing second-proxy candidate to return instead of orphaning the failover after 25 seconds.
+- Preserve the firmware route's read-only command and 60-second keypad-wake reservation.
+
 ## [0.1.0-alpha.45] - 2026-07-13
 
 - Reserve a paired lock while a read-only firmware request is armed so a queued startup metadata refresh cannot consume the next keypad wake.

@@ -46,6 +46,16 @@ function buildProxyManufacturerData(data) {
   return result.length > 0 ? Buffer.concat(result) : Buffer.alloc(0);
 }
 
+function inferUnknownBleAddressType(address) {
+  const firstOctet = Number.parseInt(String(address || '').split(':')[0], 16);
+  if (!Number.isFinite(firstOctet)) return 0;
+  // Home Assistant's shared Bluetooth service-info feed omits address_type.
+  // A static-random BLE address has its two most-significant bits set. Keep
+  // any explicit ESPHome address type authoritative; use this only when the
+  // shared feed provides no type at all.
+  return (firstOctet & 0xC0) === 0xC0 ? 1 : 0;
+}
+
 class EsphomeProxyBridge extends EventEmitter {
   constructor(options = {}) {
     super();
@@ -358,9 +368,17 @@ class EsphomeProxyDevice extends EventEmitter {
     this.uuid = this.id;
     this.name = advertisement.name || this.name;
     this.rssi = Number.isFinite(advertisement.rssi) ? advertisement.rssi : this.rssi;
-    this.addressType = Number.isInteger(advertisement.address_type)
-      ? advertisement.address_type
-      : (this.addressType ?? 0);
+    if (Number.isInteger(advertisement.address_type)) {
+      this.addressType = advertisement.address_type;
+      this.addressTypeInferred = false;
+    } else if (!Number.isInteger(this.addressType)) {
+      this.addressType = inferUnknownBleAddressType(this.address);
+      this.addressTypeInferred = true;
+      console.log(
+        `[Bluetooth][ESPHome] Home Assistant omitted address type for ${this.address}; `
+        + `using ${this.addressType === 1 ? 'static-random' : 'public'}`,
+      );
+    }
     this.connectable = true;
     this.serviceUuids = (advertisement.service_uuids || this.serviceUuids || []).map(normalizeUuid);
     this.serviceData = advertisement.service_data || this.serviceData || {};
@@ -398,10 +416,11 @@ class EsphomeProxyDevice extends EventEmitter {
         address: this.address,
         address_type: this.addressType,
         timeout,
-      // aioesphomeapi may spend up to another connection timeout draining a
-      // failed ESPHome GATT attempt. Keep the bridge request alive until that
-      // cleanup completes so a bounded retry cannot overlap the stale attempt.
-      }, ((timeout * 2) + 5) * 1000);
+      // aioesphomeapi can spend another 20 seconds draining a failed ESPHome
+      // GATT attempt. Keep the request alive long enough for the bridge's next
+      // proxy candidate to return success, while remaining inside the manager's
+      // 45/55-second command/full-session outer bounds.
+      }, Math.min(((timeout * 4) + 5) * 1000, 50000));
       this.connected = true;
       this.connecting = false;
       this.state = 'connected';
@@ -841,5 +860,6 @@ module.exports = {
   EsphomeProxyService,
   EsphomeProxyTTLockClient,
   buildProxyManufacturerData,
+  inferUnknownBleAddressType,
   propertyMaskToNames,
 };
