@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.38] - 2026-07-13
+
+- Use TTLock's documented administrator lock path and `CHECK_ADMIN` challenge before locking when the imported key contains an administrator password; ordinary eKeys retain `CHECK_USER_TIME`.
+- Keep the authenticated lock payload, AES key, unlock key, response validation, retry limits, and fail-closed behavior unchanged.
+- Record alpha.37's first physically confirmed administrator-authenticated ESPHome proxy unlock: attempt one returned success in 3.60 seconds and the user confirmed the bolt retracted.
+- Record the following relock failure: the legacy `checkUserTime` exchange disconnected before the actuator command, the retry timed out connecting, and the user confirmed the bolt remained unlocked.
+
 ## [0.1.0-alpha.37] - 2026-07-13
 
 - Use TTLock's documented `CHECK_ADMIN` challenge before unlock when the imported key contains an administrator password; ordinary eKeys retain `CHECK_USER_TIME`.
