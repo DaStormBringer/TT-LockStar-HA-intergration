@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.57] - 2026-07-13
+
+- Save the authoritative current SDK lock snapshot after feature discovery instead of the ESPHome transport's possibly stale pre-connection cache entry.
+- Synchronize the transport cache with the same snapshot before writing `lockData.json`, preventing a later save from erasing the feature list.
+- Restore the saved auto-lock delay and last observed sound setting along with the feature list instead of reverting them to unknown defaults on restart.
+- Correct the live alpha.56 restart test where features were available in memory but reverted to unsupported after the add-on restarted.
+- Keep all actuator, setting, credential, and fingerprint behavior unchanged; this release only repairs capability metadata persistence.
+- Pass 104 JavaScript tests and 8 ESPHome bridge tests in the built Linux/amd64 image; verify add-on 0.1.0-alpha.57, SDK 0.3.34, and 42 exposed commands.
+
 ## [0.1.0-alpha.56] - 2026-07-13
 
 - Preserve and persist a completely decoded read-only hardware feature list when the M302 disconnects during the SDK's final connection bookkeeping.

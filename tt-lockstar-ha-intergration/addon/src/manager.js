@@ -504,10 +504,25 @@ class Manager extends EventEmitter {
       );
     }
 
-    // The patched SDK serializes the feature set as an array. Persist it here
-    // immediately so direct ESPHome mode can keep its safe startup deferral
-    // without making supported settings and credential commands look absent.
-    await store.setLockData(this.client.getLockData());
+    // The native transports keep their own lock-data cache. A late SDK
+    // disconnect can leave that cache one event behind even though this lock
+    // object already has the complete feature Set. Replace the matching cached
+    // record with the authoritative current lock snapshot before saving it.
+    const currentLockData = lock.getLockData();
+    if (!currentLockData || !Array.isArray(currentLockData.featureList)) {
+      console.error(`[Manager] Hardware feature snapshot was not serializable for ${lock.getAddress()}`);
+      return false;
+    }
+    const cachedLockData = this.client.getLockData();
+    let replaced = false;
+    const mergedLockData = cachedLockData.map(item => {
+      if (item.address != currentLockData.address) return item;
+      replaced = true;
+      return currentLockData;
+    });
+    if (!replaced) mergedLockData.push(currentLockData);
+    this.client.setLockData(mergedLockData);
+    await store.setLockData(mergedLockData);
     this.emit("lockUpdated", lock);
     return true;
   }

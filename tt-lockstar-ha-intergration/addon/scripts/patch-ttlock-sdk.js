@@ -633,6 +633,12 @@ function patchFeatureListRestore(source) {
         // discovery across add-on restarts without another broad metadata read.
         if (Array.isArray(data.featureList)) {
             this.featureList = new Set(data.featureList.filter(Number.isInteger));
+        }
+        if (Number.isInteger(data.autoLockTime)) {
+            this.autoLockTime = data.autoLockTime;
+        }
+        if (Number.isInteger(data.lockSound)) {
+            this.lockSound = data.lockSound;
         }`,
     'TTLockApi feature-list restore',
   );
@@ -648,6 +654,7 @@ function patchFeatureListPersistence(source) {
     `                // ${FEATURE_LIST_PERSISTENCE_PATCH_MARKER}: persist zero as
                 // a valid disabled auto-lock delay and serialize Set as an array.
                 autoLockTime: Number.isInteger(this.autoLockTime) ? this.autoLockTime : -1,
+                lockSound: this.lockSound,
                 lockedStatus: this.lockedStatus,
                 featureList: this.featureList ? Array.from(this.featureList) : undefined,
                 privateData: privateData,`,
