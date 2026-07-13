@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.22] - 2026-07-12
+
+- Record that alpha.21 correctly failed closed because the D-Bus transport produced no duplicate Noble discovery event within either six-second freshness window; no lock command was written.
+- Attach a BlueZ `PropertiesChanged` listener to discovered devices while scanning.
+- Translate live RSSI, manufacturer, service-data, UUID, and name changes into Noble duplicate discovery events.
+- Reattach the listener after disconnect without treating BlueZ's cached device object as a fresh advertisement.
+- Add fail-closed patch guards and regression coverage for the D-Bus duplicate-discovery bridge.
+
 ## [0.1.0-alpha.21] - 2026-07-12
 
 - Record that alpha.20 failed safely before writing a command: both BlueZ connection attempts returned `org.bluez.Error.Failed: le-connection-abort-by-local`, and the user confirmed the deadbolt stayed locked.

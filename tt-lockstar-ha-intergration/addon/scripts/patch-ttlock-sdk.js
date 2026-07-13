@@ -12,6 +12,7 @@ const COMMAND_CONNECT_STATE_PATCH_MARKER = 'TT_LOCKSTAR_COMMAND_CONNECT_STATE';
 const NOBLE_ENTRYPOINT_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_ADAPTER';
 const NOBLE_WITH_BINDINGS_SHIM_MARKER = 'TT_LOCKSTAR_WITH_BINDINGS_SHIM';
 const NOBLE_DBUS_STATE_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_LIVE_STATE';
+const NOBLE_DBUS_DUPLICATE_DISCOVERY_PATCH_MARKER = 'TT_LOCKSTAR_DBUS_DUPLICATE_DISCOVERY';
 const FAST_COMMAND_DEVICE_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_DEVICE_CONNECT';
 const FAST_COMMAND_LOCK_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_LOCK_CONNECT';
 const FAST_COMMAND_TIMEOUT_PATCH_MARKER = 'TT_LOCKSTAR_FAST_COMMAND_TIMEOUT';
@@ -222,6 +223,88 @@ function patchNobleDbusStateCache(source) {
     });
     this._objects.set(device.path, stored);`,
     '@stoprocent/noble D-Bus disconnect cache reset',
+  );
+
+  return patched;
+}
+
+function patchNobleDbusDuplicateDiscovery(source) {
+  if (source.includes(NOBLE_DBUS_DUPLICATE_DISCOVERY_PATCH_MARKER)) return source;
+
+  let patched = replaceExactlyOnce(
+    source,
+    `        if (unwrapped[DEVICE_IFACE] && this._isUnderAdapter(path)) {
+          const address = unwrapped[DEVICE_IFACE].Address || devicePathToAddress(path);
+          if (address && this._devices.has(addressToId(address))) continue;
+          this._handleDeviceProps(path, unwrapped[DEVICE_IFACE]);
+        }`,
+    `        if (unwrapped[DEVICE_IFACE] && this._isUnderAdapter(path)) {
+          const address = unwrapped[DEVICE_IFACE].Address || devicePathToAddress(path);
+          const id = address && addressToId(address);
+          if (id && this._devices.has(id)) {
+            // ${NOBLE_DBUS_DUPLICATE_DISCOVERY_PATCH_MARKER}: a disconnected
+            // device loses its PropertiesChanged listener. Reattach it when
+            // monitoring restarts without treating cached data as a live advert.
+            this._ensureDeviceProxy(id).catch(err => debug('device proxy refresh failed: %s', err.message));
+            continue;
+          }
+          this._handleDeviceProps(path, unwrapped[DEVICE_IFACE]);
+        }`,
+    '@stoprocent/noble cached device listener refresh',
+  );
+
+  patched = replaceExactlyOnce(
+    patched,
+    `    this.emit(
+      'discover',
+      id,
+      device.address,
+      device.addressType,
+      device.connectable,
+      device.advertisement,
+      device.rssi,
+      device.scannable
+    );
+  }`,
+    `    this.emit(
+      'discover',
+      id,
+      device.address,
+      device.addressType,
+      device.connectable,
+      device.advertisement,
+      device.rssi,
+      device.scannable
+    );
+    // Listen while scanning so BlueZ DuplicateData property updates can be
+    // surfaced as Noble duplicate discovery events.
+    this._ensureDeviceProxy(id).catch(err => debug('device proxy setup failed: %s', err.message));
+  }`,
+    '@stoprocent/noble scanning device listener setup',
+  );
+
+  patched = replaceExactlyOnce(
+    patched,
+    `      this._objects.set(device.path, stored);
+      if ('RSSI' in c) {`,
+    `      this._objects.set(device.path, stored);
+      const advertisementKeys = ['RSSI', 'ManufacturerData', 'ServiceData', 'UUIDs', 'Name', 'Alias'];
+      if (this._isScanning && advertisementKeys.some(key => key in c)) {
+        Object.assign(device.advertisement, buildAdvertisement(stored[DEVICE_IFACE]));
+        if (typeof stored[DEVICE_IFACE].RSSI === 'number') device.rssi = stored[DEVICE_IFACE].RSSI;
+        this.emit(
+          'discover',
+          id,
+          device.address,
+          device.addressType,
+          device.connectable,
+          device.advertisement,
+          device.rssi,
+          device.scannable
+        );
+      }
+      if ('RSSI' in c) {`,
+    '@stoprocent/noble duplicate discovery property bridge',
   );
 
   return patched;
@@ -461,7 +544,9 @@ function patchInstalledSdk(addonRoot = path.resolve(__dirname, '..')) {
   fs.writeFileSync(nobleWithBindingsPath, createNobleWithBindingsShim());
   fs.writeFileSync(
     nobleDbusBindingsPath,
-    patchNobleDbusStateCache(fs.readFileSync(nobleDbusBindingsPath, 'utf8')),
+    patchNobleDbusDuplicateDiscovery(
+      patchNobleDbusStateCache(fs.readFileSync(nobleDbusBindingsPath, 'utf8')),
+    ),
   );
   console.log(`Patched ttlock-sdk-js ${EXPECTED_VERSION}; raw-HCI Noble ${rawNoblePackage.version}; D-Bus Noble ${noblePackage.version}`);
 }
@@ -481,6 +566,7 @@ module.exports = {
   patchNobleEntrypoint,
   patchNobleDevice,
   patchNobleDbusStateCache,
+  patchNobleDbusDuplicateDiscovery,
   patchNobleScanner,
   patchTargetedCommandDiscovery,
   patchTargetedNobleDiscovery,
