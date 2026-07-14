@@ -55,8 +55,7 @@ function usesAdvertisementGatedTransport() {
 }
 
 function defersAutomaticMetadataRefresh() {
-  return process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy'
-    && process.env.TTLOCK_ESPHOME_ADVERTISEMENT_SOURCE === 'direct';
+  return process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy';
 }
 
 function bluetoothTransportLabel() {
@@ -1609,7 +1608,7 @@ class Manager extends EventEmitter {
         }
         if (defersAutomaticMetadataRefresh()) {
           console.log(
-            `[Manager] Direct ESPHome mode discovered ${lock.getAddress()}; `
+            `[Manager] ESPHome proxy mode discovered ${lock.getAddress()}; `
             + 'deferring automatic metadata refresh for an explicit request',
           );
         } else if (this.client.isMonitoring()) {

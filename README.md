@@ -15,7 +15,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.60`
+- Add-on version: `0.1.0-alpha.61`
 - Home Assistant stage: `experimental`
 - Development branch: `main`
 - Target: Home Assistant on Linux
@@ -23,7 +23,7 @@ Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt
 - Frontend production build: successful before the final package rename; renamed packaged assets verified in the final Docker image
 - Backend JavaScript syntax checks: successful
 - SDK v0.3.34 compile and method inspection: successful
-- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ has one physically verified round trip without an add-on restart. ESPHome through the dedicated Craft proxy has completed physically confirmed lock and unlock commands. The alpha.58 prepared unlock reused a verified live command channel and completed the authenticated command in 659 milliseconds; the user physically confirmed the closed door was unlocked. Alpha.60 exposes that same bounded read-only preparation lease as a Home Assistant MQTT button so a separate approach event can absorb connection latency without authorizing or sending lock/unlock.
+- Real Bluetooth adapter and lock test: discovery, battery, time, magnetic contact, operation-log reads, unlock, and lock have worked with raw HCI. Native BlueZ has one physically verified round trip without an add-on restart. ESPHome through the dedicated Craft proxy has completed physically confirmed lock and unlock commands. The alpha.58 prepared unlock reused a verified live command channel and completed the authenticated command in 659 milliseconds; the user physically confirmed the closed door was unlocked. Alpha.60 exposed that same bounded read-only preparation lease as a Home Assistant MQTT button. Alpha.61 corrects the shared-feed address-type handoff and suppresses unsolicited startup metadata connections before further preparation testing.
 - Alpha.57 adds explicit read-only hardware-feature discovery and persists the authoritative current SDK lock snapshot so auto-lock, sound, PIN, card, passage-mode, and remote-unlock commands do not look unsupported after a direct ESPHome restart. Live validation restored the complete feature set, auto-lock `0`, and sound on after an add-on-only restart without contacting the lock again. Biometric enrollment remains last and unvalidated.
 - Production readiness: **not ready**
 
@@ -111,7 +111,7 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.60 \
+  --tag tt-lockstar-ha-intergration:0.1.0-alpha.61 \
   ./tt-lockstar-ha-intergration
 ```
 

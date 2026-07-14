@@ -25,7 +25,6 @@ const {
   EsphomeProxyDevice,
   EsphomeProxyScanner,
   buildProxyManufacturerData,
-  inferUnknownBleAddressType,
   propertyMaskToNames,
 } = require('../src/esphomeProxyTransport');
 
@@ -167,12 +166,23 @@ test('maps a Home Assistant advertisement to its ESPHome proxy before discovery'
   assert.equal(observations.length, 1);
   assert.equal(discovered.lastProxy, 'craft-door-proxy');
   assert.equal(discovered.rssi, -65);
-  assert.equal(discovered.addressType, 1);
-  assert.equal(discovered.addressTypeInferred, true);
+  assert.equal(discovered.addressType, undefined);
 });
 
-test('infers only a missing static-random BLE address type', () => {
-  assert.equal(inferUnknownBleAddressType('DC:47:11:85:94:2F'), 1);
-  assert.equal(inferUnknownBleAddressType('4C:B0:4A:5E:0B:C3'), 0);
-  assert.equal(inferUnknownBleAddressType('invalid'), 0);
+test('passes an omitted BLE address type through to the proxy', async () => {
+  const calls = [];
+  const bridge = new EventEmitter();
+  bridge.request = async (action, payload) => {
+    calls.push({ action, payload });
+    return { proxy: 'door-proxy', mtu: 23 };
+  };
+  const device = new EsphomeProxyDevice({ bridge }, {
+    address: 'DC:47:11:85:94:2F',
+    address_type: null,
+    service_uuids: ['1910'],
+  });
+
+  assert.equal(await device.connect(8), true);
+  assert.equal(calls[0].action, 'connect');
+  assert.equal(calls[0].payload.address_type, undefined);
 });

@@ -46,16 +46,6 @@ function buildProxyManufacturerData(data) {
   return result.length > 0 ? Buffer.concat(result) : Buffer.alloc(0);
 }
 
-function inferUnknownBleAddressType(address) {
-  const firstOctet = Number.parseInt(String(address || '').split(':')[0], 16);
-  if (!Number.isFinite(firstOctet)) return 0;
-  // Home Assistant's shared Bluetooth service-info feed omits address_type.
-  // A static-random BLE address has its two most-significant bits set. Keep
-  // any explicit ESPHome address type authoritative; use this only when the
-  // shared feed provides no type at all.
-  return (firstOctet & 0xC0) === 0xC0 ? 1 : 0;
-}
-
 class EsphomeProxyBridge extends EventEmitter {
   constructor(options = {}) {
     super();
@@ -370,15 +360,12 @@ class EsphomeProxyDevice extends EventEmitter {
     this.rssi = Number.isFinite(advertisement.rssi) ? advertisement.rssi : this.rssi;
     if (Number.isInteger(advertisement.address_type)) {
       this.addressType = advertisement.address_type;
-      this.addressTypeInferred = false;
-    } else if (!Number.isInteger(this.addressType)) {
-      this.addressType = inferUnknownBleAddressType(this.address);
-      this.addressTypeInferred = true;
-      console.log(
-        `[Bluetooth][ESPHome] Home Assistant omitted address type for ${this.address}; `
-        + `using ${this.addressType === 1 ? 'static-random' : 'public'}`,
-      );
     }
+    // Home Assistant's shared Bluetooth feed does not expose address_type.
+    // Do not infer it from the first MAC octet: public OUIs can have the same
+    // high bits as a static-random address. Leaving it undefined lets the
+    // selected ESPHome proxy use its own observation, with public as the
+    // bridge's conservative fallback when no source-specific type is known.
     this.connectable = true;
     this.serviceUuids = (advertisement.service_uuids || this.serviceUuids || []).map(normalizeUuid);
     this.serviceData = advertisement.service_data || this.serviceData || {};
@@ -864,6 +851,5 @@ module.exports = {
   EsphomeProxyService,
   EsphomeProxyTTLockClient,
   buildProxyManufacturerData,
-  inferUnknownBleAddressType,
   propertyMaskToNames,
 };

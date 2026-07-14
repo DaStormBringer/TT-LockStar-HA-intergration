@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.61] - 2026-07-13
+
+- Stop inferring a missing BLE address type from the first MAC octet; public OUIs and static-random addresses can share the same high bits.
+- Pass an omitted Home Assistant address type through so a selected ESPHome proxy can use its own observation, with the bridge's existing public fallback only when no source-specific value exists.
+- Defer automatic full metadata connections for every ESPHome advertisement source, keeping discovery passive until an explicit read, preparation, or command requests GATT.
+- Retain the shared Home Assistant advertisement feed as the supported default so the add-on does not displace Home Assistant's single ESPHome Bluetooth subscription.
+- Pass 114 JavaScript tests and 8 ESPHome bridge tests in the built Linux/amd64 image; verify add-on 0.1.0-alpha.61, SDK 0.3.34, and 42 exposed commands.
+
 ## [0.1.0-alpha.60] - 2026-07-13
 
 - Add Home Assistant MQTT discovery for a `Prepare M302 Connection` button backed by the existing bounded 15-second read-only connection lease.

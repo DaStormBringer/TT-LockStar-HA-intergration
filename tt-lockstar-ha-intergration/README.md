@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.60`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.61`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 Current development prioritizes discovery, evidence-backed state, reliable lock/unlock, settings, PINs, and cards. Biometric fingerprint enrollment and management are unvalidated and intentionally last in the implementation and hardware-test order.
 
@@ -20,6 +20,7 @@ Current development prioritizes discovery, evidence-backed state, reliable lock/
 - ESPHome Bluetooth Proxy support has completed physically confirmed lock and unlock operations, but repeated lock/unlock reliability is not established.
 - ESPHome proxy support currently accepts native API endpoints without an API password or Noise encryption key; keep them on a trusted local network.
 - The default `home_assistant` advertisement source shares Home Assistant's Bluetooth WebSocket feed instead of claiming ESPHome's single advertisement subscription. The legacy `direct` source is diagnostic-only and can displace Home Assistant's proxy stream.
+- When Home Assistant omits the BLE address type, the add-on leaves it unknown for the selected ESPHome proxy to resolve instead of guessing from the MAC prefix. ESPHome discovery is passive until an explicit read, preparation, or command requests GATT.
 - The add-on explicitly requests active scan mode; proxies must support scanner state/mode control, active connections, and remote GATT caching.
 - May contend with the TTLock app or G2 gateway when multiple systems contact the lock.
 - Magnetic door-contact state is not deadbolt position. The lock entity stays unknown when the newest operation does not explicitly confirm the bolt.
