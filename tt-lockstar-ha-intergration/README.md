@@ -9,7 +9,7 @@ Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identit
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.58`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.59`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 Current development prioritizes discovery, evidence-backed state, reliable lock/unlock, settings, PINs, and cards. Biometric fingerprint enrollment and management are unvalidated and intentionally last in the implementation and hardware-test order.
 
@@ -65,7 +65,7 @@ Detailed per-release changes and supervised hardware-test results are maintained
 - Process-local history of up to 50 unique advertisement payload signatures, with normalized raw manufacturer and service-data bytes available through read-only `lock.status.get` for supervised reverse-engineering comparisons.
 - Lock clock read and synchronization controls
 - MQTT discovery for lock state, battery, signal strength, and lock time
-- BLE connection serialization and retry handling
+- BLE connection serialization and bounded connection recovery; physical lock and unlock payloads are executed exactly once per confirmed request and are never automatically retried
 - Process-local ESPHome GATT service/MTU caching with automatic uncached recovery; the alpha.48 cached path completed a physically confirmed unlock, although its single timing sample did not improve on alpha.47
 
 ## Recommended first test

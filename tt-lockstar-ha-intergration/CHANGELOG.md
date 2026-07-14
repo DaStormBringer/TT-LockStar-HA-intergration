@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-alpha.59] - 2026-07-13
+
+- Execute each explicitly confirmed physical lock or unlock request exactly once, eliminating the former second actuator attempt after an ambiguous timeout, disconnect, or false result.
+- Fail closed without sending an actuator payload when connection setup fails; every later attempt requires a fresh exact confirmation and supervised readiness check.
+- Preserve post-failure ESPHome GATT-cache cleanup and connection teardown without using either as permission to repeat the physical command.
+- Add regression coverage proving both lock and unlock stop after one ambiguous command failure and that a failed connection never sends or retries the actuator payload.
+- Record the first alpha.58 prepared-session success: a 2.153-second cached connection, 83-millisecond command-channel verification, 659-millisecond authenticated unlock, and physical confirmation that the closed door was unlocked.
+- Pass 110 JavaScript tests and 8 ESPHome bridge tests in the built Linux/amd64 image; verify add-on 0.1.0-alpha.59, SDK 0.3.34, and 42 exposed commands.
+
 ## [0.1.0-alpha.58] - 2026-07-13
 
 - Fail closed unless connection preparation completes a harmless lock-time read, proving that the subscribed TTLock command channel can receive a reply before a lease is advertised as ready.

@@ -79,6 +79,8 @@ For example, a supervised physical unlock request is shaped as follows:
 
 Confirmation protects the generic API from accidental calls; it does not make unattended physical operation safe. Each physical command still requires a current door/bolt assessment and manual verification during this experimental phase.
 
+Lock and unlock are executed exactly once per confirmed request. A connection failure sends no actuator payload; a false result, timeout, or disconnect after a write is treated as ambiguous and is never retried automatically. Every later attempt requires a new exact command-and-address confirmation and a fresh supervised readiness check.
+
 ## Command catalog
 
 System and lifecycle:
