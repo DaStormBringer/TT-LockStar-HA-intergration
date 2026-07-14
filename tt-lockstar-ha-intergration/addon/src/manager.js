@@ -28,8 +28,6 @@ const PreparedConnectionRegistry = require('./preparedConnectionRegistry');
 const {
   connectWithPolicy,
   getCommandAdvertisementFreshnessMs,
-  getCommandRetryDelayMs,
-  isConnectionRetrySafe,
   markLockAndStoredAdvertisement,
   refreshDbusDeviceCache,
   shouldStopMonitorBeforeConnect,
@@ -511,7 +509,7 @@ class Manager extends EventEmitter {
   async unlockLock(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      const result = await this._executeWithRetry(lock, "unlock", async () => {
+      const result = await this._executeActuatorOnce(lock, "unlock", async () => {
         const res = await lock.unlock();
         if (res && typeof lock.getLastOperationTimestamp === "function") {
           const timestamp = lock.getLastOperationTimestamp();
@@ -530,7 +528,7 @@ class Manager extends EventEmitter {
   async lockLock(address) {
     const lock = this.pairedLocks.get(address);
     if (typeof lock != "undefined") {
-      const result = await this._executeWithRetry(lock, "lock", async () => {
+      const result = await this._executeActuatorOnce(lock, "lock", async () => {
         const res = await lock.lock();
         if (res && typeof lock.getLastOperationTimestamp === "function") {
           const timestamp = lock.getLastOperationTimestamp();
@@ -1504,55 +1502,51 @@ class Manager extends EventEmitter {
   }
 
   /**
-   * Retry lock/unlock operations after a BLE disconnect while preserving the
-   * per-lock connection mutex used by the PiexlPuck branch.
+   * Execute one explicitly confirmed physical command exactly once.
+   *
+   * A timeout or disconnect after the write is ambiguous: the lock may have
+   * moved even when no reply reached us. Retrying could therefore actuate the
+   * deadbolt twice without a second user confirmation. Connection setup and
+   * command failures fail closed and require a fresh explicit request.
    */
-  async _executeWithRetry(lock, operationName, operationFn, maxRetries = 2) {
+  async _executeActuatorOnce(lock, operationName, operationFn) {
     const address = lock.getAddress();
     const operationStartedAt = Date.now();
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`[Manager] ${operationName} attempt ${attempt}/${maxRetries} at +${Date.now() - operationStartedAt}ms`);
-      if (!(await this._connectLock(lock, false))) {
-        if (!isConnectionRetrySafe(lock)) {
-          console.warn(`[Manager] ${operationName} retry suppressed because the cancelled HCI connection did not drain`);
-          break;
-        }
-        if (attempt < maxRetries) await sleep(getCommandRetryDelayMs());
-        continue;
-      }
-
-      try {
-        const commandStartedAt = Date.now();
-        const result = await operationFn();
-        console.log(
-          `[Timing] ${address} ${operationName} authenticated command phase `
-          + `${Date.now() - commandStartedAt}ms`,
-        );
-        if (result !== false || lock.isConnected()) {
-          console.log(`[Manager] ${operationName} command completed with result: ${String(result)} after ${Date.now() - operationStartedAt}ms`);
-          return result;
-        }
-        console.warn(`Lock disconnected during ${operationName}; retrying (${attempt}/${maxRetries})`);
-      } catch (error) {
-        console.error(`Error during ${operationName}:`, error);
-        if (process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy') {
-          try {
-            const cleared = await refreshDbusDeviceCache(lock);
-            if (cleared) {
-              console.warn(`[Bluetooth][ESPHome] Cleared cached GATT data before ${operationName} retry`);
-            }
-          } catch (cacheError) {
-            console.warn(`[Bluetooth][ESPHome] Could not clear cached GATT data: ${cacheError.message || cacheError}`);
-          }
-        }
-        console.warn(`Resetting the BLE connection before retry ${attempt}/${maxRetries}`);
-      }
-
-      // Release both the SDK connection and PiexlPuck's mutex before retrying.
-      await this.disconnectLock(address);
-      if (attempt < maxRetries) await sleep(getCommandRetryDelayMs());
+    console.log(`[Manager] ${operationName} actuator attempt 1/1 at +0ms`);
+    if (!(await this._connectLock(lock, false))) {
+      console.warn(`[Manager] ${operationName} connection failed; actuator command was not sent and will not be retried`);
+      return false;
     }
+
+    try {
+      const commandStartedAt = Date.now();
+      const result = await operationFn();
+      console.log(
+        `[Timing] ${address} ${operationName} authenticated command phase `
+        + `${Date.now() - commandStartedAt}ms`,
+      );
+      if (result !== false) {
+        console.log(`[Manager] ${operationName} command completed with result: ${String(result)} after ${Date.now() - operationStartedAt}ms`);
+        return result;
+      }
+      console.warn(`[Manager] ${operationName} command returned false; no automatic actuator retry is permitted`);
+    } catch (error) {
+      console.error(`Error during ${operationName}:`, error);
+      if (process.env.TTLOCK_BLUETOOTH_TRANSPORT === 'esphome_proxy') {
+        try {
+          const cleared = await refreshDbusDeviceCache(lock);
+          if (cleared) {
+            console.warn(`[Bluetooth][ESPHome] Cleared cached GATT data after failed ${operationName} command`);
+          }
+        } catch (cacheError) {
+          console.warn(`[Bluetooth][ESPHome] Could not clear cached GATT data: ${cacheError.message || cacheError}`);
+        }
+      }
+    }
+
+    await this.disconnectLock(address);
     console.log(`[Manager] ${operationName} command failed after ${Date.now() - operationStartedAt}ms`);
+    console.warn(`[Manager] A fresh explicit confirmation is required before another ${operationName} command`);
     return false;
   }
 
