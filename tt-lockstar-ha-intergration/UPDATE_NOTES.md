@@ -5,6 +5,23 @@
 
 This file contains the detailed release narrative and supervised hardware-test history that was previously embedded in the add-on README. See [README.md](README.md) for installation, current limitations, and the exact tested-compatibility scope. See [CHANGELOG.md](CHANGELOG.md) for the shorter release summary.
 
+## Passive advertisement event research
+
+A passive scan can detect changes in the advertisement `params` byte without opening a GATT connection. The known bit mapping is:
+
+| Mask | Bit | SDK field | Interpretation |
+| ---: | ---: | --- | --- |
+| `0x01` | 1 | `isUnlock` | Unlock signal; useful as supplementary transition evidence, not authoritative continuous bolt state on the tested M302 |
+| `0x02` | 2 | `newEvents` | New operation-log records are available and may be fetched to determine what happened |
+| `0x04` | 4 | `isSettingMode` | Lock is reporting setting mode |
+| `0x08` | 8 | `isTouch` | Touch activity is being reported |
+| `0x10` | 16 | `parkStatus` | Parking-lock status; lock-type-specific |
+| `0x20` | 32 | unknown | Unassigned or not yet decoded |
+| `0x40` | 64 | unknown | Unassigned or not yet decoded |
+| `0x80` | 128 | unknown | Unassigned or not yet decoded |
+
+A `newEvents` transition can trigger a bounded operation-log fetch, which may identify a manual, keypad, application, or other recorded operation. Auto-lock events were not present in the tested operation log, so log fetching alone cannot provide complete current-state detection. A combination of `newEvents` transitions, the `isUnlock` signal, command responses, and the latest confirmed operation record may improve inference, but passive advertisement bits must remain diagnostic until that combination is physically validated. The M302 sends advertisements on its own schedule, so passive change detection is not real-time and may be delayed by up to approximately 10 seconds.
+
 ## Supervised validation history
 
 Alpha.62 gives the existing bounded prepared-connection lease the display name **Prewarm**. Home Assistant remains responsible for detecting a trusted local identity, applying dwell and schedule policy, and pressing the MQTT-discovered `Prewarm M302 Connection` button. The generic API now prefers `lock.prewarm`, while `lock.connection.prepare` and the legacy MQTT `prepare/set` topic remain compatibility aliases. This release does not add an auto-unlock automation, change actuator authorization, or continuously hold BLE open.
