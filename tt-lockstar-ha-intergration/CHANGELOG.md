@@ -40,7 +40,7 @@
 - Stop the keepalive and await any in-flight read before handing the BLE session to a physical command, preventing overlapping SDK requests.
 - Disconnect and invalidate the prepared lease immediately if a verification or keepalive reply fails.
 - Preserve separate exact confirmation for every physical lock or unlock command; preparation remains read-only and does not authorize an actuator action.
-- Record the alpha.57 prepared-unlock failure: GATT accepted both command fragments, no notification reply arrived within five seconds, and the user physically confirmed the bolt remained locked. No retry was sent.
+- Record the alpha.57 prepared-unlock failure: GATT accepted both command fragments, no notification reply arrived within five seconds, and physical inspection confirmed the bolt remained locked. No retry was sent.
 - Pass 108 JavaScript tests and 8 ESPHome bridge tests in the built Linux/amd64 image; verify add-on 0.1.0-alpha.58, SDK 0.3.34, and 42 exposed commands.
 
 ## [0.1.0-alpha.57] - 2026-07-13
@@ -131,7 +131,7 @@
 - In direct ESPHome advertisement mode, discover paired locks without automatically consuming their first connectable wake for a full metadata refresh.
 - Preserve that first connection for an explicit firmware, status, or actuator request; no actuator command is added or changed.
 - Keep shared Home Assistant advertisement behavior unchanged.
-- Validate the read-only firmware route on the user's physical M302, which returned firmware `6.4.43.24052101` through the dedicated Craft ESPHome proxy.
+- Validate the read-only firmware route on the tested physical M302, which returned firmware `6.4.43.24052101` through the dedicated Craft ESPHome proxy.
 
 ## [0.1.0-alpha.46] - 2026-07-13
 
@@ -174,19 +174,19 @@
 - Clear ESPHome GATT notification callbacks whenever the BLE link disconnects and defensively before reconnecting, so every new lock session sends a fresh start-notify request instead of trusting a stale subscription marker.
 - Add regression coverage that scopes cleanup to the disconnected lock and proves a second session reissues notification registration.
 - Preserve administrator unlock authentication, user-time lock authentication, 100 ms multipart pacing, authenticated response validation, the two-attempt limit, and fail-closed behavior.
-- Record alpha.40's supervised unlock failure: both attempts connected and wrote the administrator-check fragments but disconnected waiting for the response; no actuator command was sent and the user confirmed that the bolt remained locked.
+- Record alpha.40's supervised unlock failure: both attempts connected and wrote the administrator-check fragments but disconnected waiting for the response; no actuator command was sent, and physical inspection confirmed that the bolt remained locked.
 
 ## [0.1.0-alpha.40] - 2026-07-13
 
 - Pace ESPHome multipart write-without-response fragments at 100 ms instead of 20 ms. The ESPHome API acknowledges only local queueing for this write type, so the added interval gives the proxy time to transmit one fragment before accepting the next.
 - Preserve the single ordered Node-to-bridge request, authenticated `CHECK_USER_TIME` lock flow, administrator unlock flow, response validation, two-attempt limit, and fail-closed behavior.
-- Record alpha.39's supervised lock failure: both attempts connected in under 1.4 seconds but disconnected while waiting for the `CHECK_USER_TIME` response; the user confirmed that the bolt remained unlocked.
+- Record alpha.39's supervised lock failure: both attempts connected in under 1.4 seconds but disconnected while waiting for the `CHECK_USER_TIME` response; physical inspection confirmed that the bolt remained unlocked.
 - Record the comparison phone-app lock: the same M302 locked successfully, and its advertisements transitioned from `newEvents: true` to `lockedStatus: true`, confirming the actuator and ESPHome observation path while isolating the failure to the add-on's outbound GATT exchange.
 
 ## [0.1.0-alpha.39] - 2026-07-13
 
 - Revert only alpha.38's administrator-authentication change for locking: lock again uses the pinned SDK's `CHECK_USER_TIME` path, while the physically validated administrator unlock continues to use `CHECK_ADMIN`.
-- Record alpha.38's supervised failure: both bounded lock attempts connected through the Living Room ESPHome proxy and disconnected while waiting for the administrator-check response, before the actuator payload; the user confirmed the bolt remained unlocked.
+- Record alpha.38's supervised failure: both bounded lock attempts connected through the Living Room ESPHome proxy and disconnected while waiting for the administrator-check response, before the actuator payload; physical inspection confirmed the bolt remained unlocked.
 - Align the implementation with the official React Native wrapper's generic `controlLock(LOCK, lockData)` boundary and the pinned SDK analysis, which documents administrator authentication for unlock but the user-time check for lock.
 - Preserve the lock payload, AES and unlock keys, authenticated response validation, ESPHome fragment batching, retry limits, and fail-closed behavior.
 
@@ -194,22 +194,22 @@
 
 - Use TTLock's documented administrator lock path and `CHECK_ADMIN` challenge before locking when the imported key contains an administrator password; ordinary eKeys retain `CHECK_USER_TIME`.
 - Keep the authenticated lock payload, AES key, unlock key, response validation, retry limits, and fail-closed behavior unchanged.
-- Record alpha.37's first physically confirmed administrator-authenticated ESPHome proxy unlock: attempt one returned success in 3.60 seconds and the user confirmed the bolt retracted.
-- Record the following relock failure: the legacy `checkUserTime` exchange disconnected before the actuator command, the retry timed out connecting, and the user confirmed the bolt remained unlocked.
+- Record alpha.37's first physically confirmed administrator-authenticated ESPHome proxy unlock: attempt one returned success in 3.60 seconds, and physical inspection confirmed the bolt retracted.
+- Record the following relock failure: the legacy `checkUserTime` exchange disconnected before the actuator command, the retry timed out connecting, and physical inspection confirmed the bolt remained unlocked.
 
 ## [0.1.0-alpha.37] - 2026-07-13
 
 - Use TTLock's documented `CHECK_ADMIN` challenge before unlock when the imported key contains an administrator password; ordinary eKeys retain `CHECK_USER_TIME`.
 - Keep the authenticated unlock payload, AES key, unlock key, response validation, and fail-closed behavior unchanged.
-- Record alpha.36's first physically confirmed ESPHome lock: authenticated success on attempt one in 4.66 seconds, with the user confirming the bolt extended.
-- Record three following supervised unlock failures: the back-to-back attempt could not reconnect, while later attempts connected but disconnected during `checkUserTime`; no unlock actuator payload was sent and the user confirmed the bolt remained locked each time.
+- Record alpha.36's first physically confirmed ESPHome lock: authenticated success on attempt one in 4.66 seconds, with physical inspection confirming the bolt extended.
+- Record three following supervised unlock failures: the back-to-back attempt could not reconnect, while later attempts connected but disconnected during `checkUserTime`; no unlock actuator payload was sent, and physical inspection confirmed the bolt remained locked each time.
 
 ## [0.1.0-alpha.36] - 2026-07-12
 
 - Batch each multipart TTLock command into one ordered Node-to-ESPHome bridge request while retaining 20 ms BLE fragment pacing.
 - Keep the authenticated `checkUserTime` challenge and command response requirements unchanged; no nonce is cached or bypassed.
 - Record the first physically confirmed local ESPHome proxy unlock: alpha.35 connected through the Living Room proxy and completed the authenticated unlock in 2.67 seconds.
-- Record two subsequent supervised relock failures: both connected and failed during `checkUserTime`, before the lock actuator payload was written; the user confirmed the bolt remained unlocked after each failure.
+- Record two subsequent supervised relock failures: both connected and failed during `checkUserTime`, before the lock actuator payload was written; physical inspection confirmed the bolt remained unlocked after each failure.
 - Add JavaScript and Python regression coverage for ordered batched proxy writes.
 
 ## [0.1.0-alpha.35] - 2026-07-12
@@ -217,7 +217,7 @@
 - Give only the ESPHome proxy command path a 45-second outer connection window; raw HCI, Noble D-Bus, and native BlueZ retain their existing 12-second command cutoff.
 - Raise the ESPHome GATT connection request floor from 10 to 18 seconds.
 - Keep the Node-to-Python bridge request alive through aioesphomeapi's bounded failed-connect cleanup so a second attempt cannot overlap a stale proxy connection.
-- Record the first supervised ESPHome proxy unlock attempt: both bounded connection attempts timed out before any unlock payload was written, and the user confirmed the deadbolt remained locked.
+- Record the first supervised ESPHome proxy unlock attempt: both bounded connection attempts timed out before any unlock payload was written, and physical inspection confirmed the deadbolt remained locked.
 
 ## [0.1.0-alpha.34] - 2026-07-12
 
@@ -259,8 +259,8 @@
 
 ## [0.1.0-alpha.29] - 2026-07-12
 
-- Record the first physically verified native BlueZ round trip on the front-door lock: unlock completed in 4.32 seconds and the user confirmed the bolt retracted.
-- Record the immediately following lock: the first connection timed out without writing the lock command, then the bounded retry connected in 447 ms; the authenticated lock command completed in 9.17 seconds total and the user confirmed the bolt extended.
+- Record the first physically verified native BlueZ round trip on the front-door lock: unlock completed in 4.32 seconds, and physical inspection confirmed the bolt retracted.
+- Record the immediately following lock: the first connection timed out without writing the lock command, then the bounded retry connected in 447 ms; the authenticated lock command completed in 9.17 seconds total, and physical inspection confirmed the bolt extended.
 - Confirm the native `bluez` runtime loaded no Noble modules during validation.
 - Rename shared BlueZ D-Bus diagnostic labels from `[Bluetooth][D-Bus]` to `[Bluetooth][BlueZ]` so native transport logs are not mistaken for the Noble-backed `dbus` transport.
 - Keep native BlueZ opt-in and all unattended or automatic lock control out of scope while repeated-cycle reliability is still being established.
@@ -320,7 +320,7 @@
 
 ## [0.1.0-alpha.21] - 2026-07-12
 
-- Record that alpha.20 failed safely before writing a command: both BlueZ connection attempts returned `org.bluez.Error.Failed: le-connection-abort-by-local`, and the user confirmed the deadbolt stayed locked.
+- Record that alpha.20 failed safely before writing a command: both BlueZ connection attempts returned `org.bluez.Error.Failed: le-connection-abort-by-local`, and physical inspection confirmed the deadbolt stayed locked.
 - Wait up to six seconds for an advertisement no older than one second before a D-Bus connection attempt.
 - Allow 250 ms for this App's BlueZ discovery stop to settle before calling `Device1.Connect`; raw-HCI timing is unchanged.
 - Keep actual `Peripheral connect error` messages visible when communication debug is disabled.
@@ -335,7 +335,7 @@
 
 ## [0.1.0-alpha.19] - 2026-07-12
 
-- Record the supervised alpha.18 unlock failure: the command remained fail-safe and the user confirmed the physical deadbolt stayed locked.
+- Record the supervised alpha.18 unlock failure: the command remained fail-safe, and physical inspection confirmed the physical deadbolt stayed locked.
 - Wait for Noble's pending raw-HCI connection slot to drain after cancellation before allowing a retry.
 - Do not issue `cancelConnect` against a connection that has already completed; disconnect that handle normally instead.
 - Suppress the retry when cancellation does not drain, preventing a known-stale second connection attempt.

@@ -1505,7 +1505,7 @@ class Manager extends EventEmitter {
    *
    * A timeout or disconnect after the write is ambiguous: the lock may have
    * moved even when no reply reached us. Retrying could therefore actuate the
-   * deadbolt twice without a second user confirmation. Connection setup and
+   * deadbolt twice without a second explicit operator confirmation. Connection setup and
    * command failures fail closed and require a fresh explicit request.
    */
   async _executeActuatorOnce(lock, operationName, operationFn) {
