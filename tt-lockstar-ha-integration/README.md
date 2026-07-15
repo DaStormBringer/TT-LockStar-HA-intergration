@@ -1,15 +1,15 @@
-# Home Assistant Add-on: TT-LockStar-HA-intergration
+# Home Assistant Add-on: TT-LockStar-HA-integration
 
 > [!CAUTION]
 > **VERY EXPERIMENTAL — NOT PRODUCTION READY.** This add-on controls a physical door lock and has only limited single-device hardware validation. Use it only while physically present and retain a working mechanical key, keypad, or other manual entry method.
 
 This add-on provides local Bluetooth control of compatible TTLock locks. It combines PiexlPuck's newer Home Assistant packaging and interface with selected RK392 reliability changes and TTLock SDK v0.3.34.
 
-Home Assistant slug: `tt-lockstar-ha-intergration`. This is a new add-on identity and does not automatically inherit data from installations using the upstream `ttlock-hass-integration` slug.
+Home Assistant slug: `tt-lockstar-ha-integration`. This corrected slug is a new add-on identity and does not automatically inherit data from installations using the legacy `tt-lockstar-ha-intergration` or upstream `ttlock-hass-integration` slug. Back up and explicitly migrate add-on data before replacing an existing installation.
 
 Read the repository [merge and validation notes](../MERGE_NOTES.md) before installation.
 
-Current version: `0.1.0-alpha.62`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
+Current version: `0.1.0-alpha.63`. The project uses Semantic Versioning and will remain in prerelease status until supervised lock-hardware testing is complete.
 
 Current development prioritizes discovery, evidence-backed state, reliable lock/unlock, settings, PINs, and cards. Biometric fingerprint enrollment and management are unvalidated and intentionally last in the implementation and hardware-test order.
 

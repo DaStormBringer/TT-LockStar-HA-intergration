@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.63] - 2026-07-15
+
+- Correct the project name from `TT-LockStar-HA-intergration` to `TT-LockStar-HA-integration` across local paths, package names, manifests, generated Ingress HTML, and current documentation.
+- Change the Home Assistant add-on slug to `tt-lockstar-ha-integration`; installations using the legacy misspelled slug require an explicit add-on data migration or clean reinstall.
+- Rename the GitHub repository to `DaStormBringer/TT-LockStar-HA-integration` and update local remotes, manifests, and documentation to the corrected URL.
+- Build the corrected Linux/amd64 image successfully and pass 115 JavaScript tests plus 8 ESPHome bridge tests under `tt-lockstar-ha-integration@0.1.0-alpha.63`.
+
 ## [0.1.0-alpha.62] - 2026-07-13
 
 - Add preferred read-only API command `lock.prewarm`; preserve `lock.connection.prepare` as an equivalent compatibility alias.

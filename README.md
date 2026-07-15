@@ -1,21 +1,21 @@
-# TT-LockStar-HA-intergration
+# TT-LockStar-HA-integration
 
 > [!CAUTION]
 > **VERY EXPERIMENTAL.** This software can operate a physical door lock. Hardware validation is incomplete, and passing automated tests does not establish safe production operation. It must not be treated as the only means of entering or securing a property. Test only while physically present with a working mechanical key, keypad, or other manual fallback.
 
 This repository merges the newer Home Assistant packaging and interface work from `PiexlPuck/hass-addons` with compatible reliability changes from `RK392/hass-addons` and the RK392 TTLock SDK v0.3.34.
 
-The public project and repository name is `TT-LockStar-HA-intergration`. Its Home Assistant add-on slug is `tt-lockstar-ha-intergration`.
+The public project and repository name is `TT-LockStar-HA-integration`. Its Home Assistant add-on slug is `tt-lockstar-ha-integration`.
 
-The slug was changed before the first release. Home Assistant treats a changed slug as a different add-on, so installations made under the former `ttlock-hass-integration` slug will not automatically inherit add-on data or configuration.
+Home Assistant treats a changed slug as a different add-on. Installations made under the legacy `tt-lockstar-ha-intergration` or upstream `ttlock-hass-integration` slug will not automatically inherit add-on data or configuration. Back up and explicitly migrate add-on data before replacing an existing installation.
 
 Read [MERGE_NOTES.md](MERGE_NOTES.md) before building, installing, pairing, or operating a lock.
 
-Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt-lockstar-ha-intergration/UPDATE_NOTES.md).
+Detailed release and supervised hardware-test history is in [UPDATE_NOTES.md](tt-lockstar-ha-integration/UPDATE_NOTES.md).
 
 ## Current status
 
-- Add-on version: `0.1.0-alpha.61`
+- Add-on version: `0.1.0-alpha.63`
 - Home Assistant stage: `experimental`
 - Development branch: `main`
 - Target: Home Assistant on Linux
@@ -65,7 +65,7 @@ Do not reset, unpair, or initialize an existing production lock until its curren
 - Bounded read-only connection preparation for latency-sensitive supervised workflows
 - Home Assistant Ingress interface
 
-The generic command API, its exact-confirmation rules, and the intentionally excluded low-level SDK internals are documented in [API_COMMANDS.md](tt-lockstar-ha-intergration/API_COMMANDS.md).
+The generic command API, its exact-confirmation rules, and the intentionally excluded low-level SDK internals are documented in [API_COMMANDS.md](tt-lockstar-ha-integration/API_COMMANDS.md).
 
 ## Requirements
 
@@ -111,8 +111,8 @@ The validated local `amd64` build command is:
 ```sh
 docker build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest \
-  --tag tt-lockstar-ha-intergration:0.1.0-alpha.61 \
-  ./tt-lockstar-ha-intergration
+  --tag tt-lockstar-ha-integration:0.1.0-alpha.63 \
+  ./tt-lockstar-ha-integration
 ```
 
 Building an image does not validate Bluetooth behavior. Final testing must occur on the Home Assistant Linux host with its real adapter and lock.
@@ -142,4 +142,4 @@ The upstream histories are preserved in the merge commit. See [MERGE_NOTES.md](M
 
 ## License
 
-This project remains licensed under the GNU General Public License v3.0. The original license and author attribution are retained in [LICENSE.md](tt-lockstar-ha-intergration/LICENSE.md). Modified versions and redistributed builds must continue to comply with the GPL.
+This project remains licensed under the GNU General Public License v3.0. The original license and author attribution are retained in [LICENSE.md](tt-lockstar-ha-integration/LICENSE.md). Modified versions and redistributed builds must continue to comply with the GPL.

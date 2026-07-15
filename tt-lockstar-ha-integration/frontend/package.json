@@ -1,6 +1,6 @@
 {
-  "name": "tt-lockstar-ha-intergration-frontend",
-  "version": "0.1.0-alpha.15",
+  "name": "tt-lockstar-ha-integration-frontend",
+  "version": "0.1.0-alpha.16",
   "author": "Emanuel Posescu <kind3r@gmail.com>",
   "scripts": {
     "serve": "vue-cli-service serve",
@@ -35,12 +35,12 @@
     "vuetify-loader": "^1.3.0"
   },
   "bugs": {
-    "url": "https://github.com/DaStormBringer/TT-LockStar-HA-intergration/issues"
+    "url": "https://github.com/DaStormBringer/TT-LockStar-HA-integration/issues"
   },
-  "homepage": "https://github.com/DaStormBringer/TT-LockStar-HA-intergration/tree/main/tt-lockstar-ha-intergration",
+  "homepage": "https://github.com/DaStormBringer/TT-LockStar-HA-integration/tree/main/tt-lockstar-ha-integration",
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DaStormBringer/TT-LockStar-HA-intergration.git"
+    "url": "git+https://github.com/DaStormBringer/TT-LockStar-HA-integration.git"
   }
 }
